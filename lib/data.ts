@@ -83,7 +83,9 @@ export async function getConversationOrders(conversationId: string): Promise<Ord
 export type DashboardData = {
   seller: Seller;
   products: Product[];
-  conversations: Array<Conversation & { product: Pick<Product, "id" | "name" | "photo_url"> | null; last: Message | null }>;
+  conversations: Array<
+    Conversation & { product: Pick<Product, "id" | "name" | "photo_url"> | null; last: Message | null; buyerTimes: string[] }
+  >;
   orders: Array<Order & { product: Pick<Product, "id" | "name" | "photo_url" | "price" | "listing"> }>;
 };
 
@@ -121,10 +123,14 @@ export async function getDashboard(sellerId: string): Promise<DashboardData | nu
   if (msgs.error) throw new Error(msgs.error.message);
 
   const lastByConv = new Map<string, Message>();
-  for (const m of (msgs.data ?? []) as Message[]) if (!lastByConv.has(m.conversation_id)) lastByConv.set(m.conversation_id, m);
+  const buyerTimes = new Map<string, string[]>();
+  for (const m of (msgs.data ?? []) as Message[]) {
+    if (!lastByConv.has(m.conversation_id)) lastByConv.set(m.conversation_id, m);
+    if (m.sender === "buyer") buyerTimes.set(m.conversation_id, [...(buyerTimes.get(m.conversation_id) ?? []), m.created_at]);
+  }
 
   const conversations = ((convs.data ?? []) as DashboardData["conversations"])
-    .map((c) => ({ ...c, last: lastByConv.get(c.id) ?? null }))
+    .map((c) => ({ ...c, last: lastByConv.get(c.id) ?? null, buyerTimes: buyerTimes.get(c.id) ?? [] }))
     .sort((a, b) => ((b.last?.created_at ?? b.created_at) > (a.last?.created_at ?? a.created_at) ? 1 : -1));
 
   return {

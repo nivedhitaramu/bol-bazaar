@@ -7,12 +7,18 @@ import { SoundGate } from "@/components/SoundGate";
 import { Logo } from "@/components/AppHeader";
 import { useLang } from "@/components/LangProvider";
 import { isAudioUnlocked } from "@/lib/client/player";
+import { markRead } from "@/lib/client/unread";
 
 export function ChatScreen({ conversationId, side }: { conversationId: string; side: "buyer" | "seller" }) {
   const [sound, setSound] = useState(false);
   useEffect(() => {
     if (isAudioUnlocked()) setSound(true); // already unlocked earlier in this tab (client-side navigation)
   }, []);
+  useEffect(() => {
+    if (side !== "seller") return;
+    markRead(conversationId);
+    return () => markRead(conversationId);
+  }, [side, conversationId]);
   const router = useRouter();
   const { t } = useLang();
   return (
