@@ -1,36 +1,182 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎙️ Bol Bazaar
 
-## Getting Started
+**Sell anywhere in India, just by speaking.**
 
-First, run the development server:
+Bol Bazaar is a voice-first marketplace for India's small sellers (artisans, home cooks, weavers, potters). A seller lists a product by *talking* about it in their own language. A buyer in another state can then talk to the seller live, and each side hears the other **in their own language**.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+> 🏆 Built for **India Runs on Voice** (Scaler × Wispr), **Small Business track**.
+
+---
+
+## The problem
+
+Meena has woven Kanchipuram silk sarees for 20 years. Her work is exquisite, but she only speaks Tamil, she isn't comfortable typing, and every e-commerce app asks her to fill in long English forms. Her buyers are in Lucknow, Pune and Kolkata, and they don't speak Tamil.
+
+So Meena sells through a middleman, who keeps most of the margin. India has **tens of millions** of Meenas. The barrier for them isn't the product. It's the **keyboard and the language**.
+
+## The solution
+
+Bol Bazaar removes both.
+
+| Seller says… | Bol Bazaar does… |
+|---|---|
+| *"இது காஞ்சிபுரம் பட்டுப் புடவை, விலை எட்டாயிரத்து ஐநூறு ரூபாய், மூன்று பீஸ் இருக்கு…"* | Transcribes it, extracts **only what she said** (name, material, price ₹8,500 **exactly**, quantity 3, story), writes a listing in **English, Hindi and Tamil**, and **reads it back to her** in Tamil. |
+| *"விலையை 8000 ஆக மாற்று"* ("change price to 8000") | Applies the edit, re-renders and reads it back. |
+| Taps **Publish** | She gets a shareable link and a **Share on WhatsApp** button. |
+| A Hindi buyer in Lucknow asks *"क्या थोड़ा कम हो सकता है?"* | Meena **hears it in Tamil**, replies by voice in Tamil, and the buyer **hears it in Hindi**, in about 3 seconds. |
+| *"ஆர்டரை உறுதி செய்"* ("confirm order") | The order status updates, and the buyer gets a **spoken Hindi update** in the chat. |
+
+## ✨ Key features
+
+- **🎤 List by voice**: photo, speak, then a structured listing in 3 languages, with fields that weren't said **highlighted in yellow** (never invented).
+- **🔢 Exact numbers**: understands *lakh*, *hazaar*, *ஆயிரம்*, "8.5k" and digits in any script. A deterministic guard makes sure a price the seller actually said is **never altered** by the LLM.
+- **🗣️ Voice edits**: "change price to 8000", "add: available in red".
+- **💬 Live cross-language chat** (the demo moment): Supabase Realtime, auto-play in the listener's language, "Listening… / Translating… / Speaking…" states shown to *both* sides, a per-message latency badge, original text shown under each translation, and a replay button.
+- **🎧 Hear the maker**: a trust feature. The buyer hears the artisan's **own voice**, then the same intro translated into their language.
+- **📦 Voice order management**: "confirm order", "ship tomorrow", "shipped" in any language, mapped to an order with a translated, spoken notification to the buyer.
+- **🖥️ /demo**: Tamil seller and Hindi buyer **side by side on one screen**, with a one-click **Reset demo**.
+- **🌐 9 languages**: Tamil, Hindi, English, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati. Core UI is fully translated into Tamil and Hindi.
+- **🛟 Works even when AI is down**: browser speech recognition and speech synthesis take over, and rule-based extraction keeps listings and order commands working. A small toast tells the user; nothing crashes.
+
+## 🎬 The demo moment (60 seconds)
+
+1. Open **`/demo`** on a laptop and tap **"Tap to enable sound"**.
+2. **Right panel (Priya, Hindi):** tap 🎤 and say *"नमस्ते, क्या यह साड़ी लाल रंग में मिलेगी?"*
+3. **Left panel (Meena, Tamil)** shows "Priya: Listening…", then the message arrives and is **spoken in Tamil**.
+4. Meena taps 🎤 and says *"ஆமாம், சிவப்பு நிறத்தில் இருக்கிறது, விலை எட்டாயிரத்து ஐநூறு"*. Priya **hears it in Hindi**.
+5. Meena uses the **order mic** and says *"ஆர்டரை உறுதி செய்"*. Priya's order tracker flips to **Confirmed** and she hears *"आपका ऑर्डर पक्का हो गया है"*.
+
+Want it on two real devices? Click **"Buyer on phone"** in the demo header (or open `/chat/<id>?as=buyer` on a phone).
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart LR
+  subgraph Browser["📱 Browser (mobile-first)"]
+    MIC["MediaRecorder → 16 kHz WAV<br/>(Web Audio API)"]
+    UI["Next.js UI<br/>Seller · Buyer · /demo"]
+    FB["Fallbacks:<br/>SpeechRecognition / speechSynthesis"]
+    RT["Supabase Realtime client<br/>(postgres_changes + broadcast)"]
+  end
+
+  subgraph Next["▲ Next.js Route Handlers (Vercel, server-only keys)"]
+    RELAY["/api/relay<br/>STT → Translate → TTS → store → insert"]
+    DRAFT["/api/listing/draft<br/>STT → LLM extract → LLM listing → TTS"]
+    ORD["/api/orders/voice<br/>STT → LLM intent → status → notify"]
+    MISC["/api/speak · /api/stt · /api/health<br/>/api/products · /api/sellers · /api/demo/reset"]
+  end
+
+  subgraph Sarvam["🇮🇳 Sarvam AI"]
+    STT["Saaras v4<br/>speech-to-text"]
+    TR["Mayura<br/>translate"]
+    TTS["Bulbul v3<br/>text-to-speech"]
+    LLM["sarvam-105b<br/>JSON extraction"]
+  end
+
+  subgraph Supa["⚡ Supabase"]
+    DB[("Postgres<br/>sellers · products · conversations<br/>messages · orders")]
+    ST[("Storage<br/>product-photos · voice-intros · chat-audio")]
+    RTS(("Realtime"))
+  end
+
+  MIC --> RELAY & DRAFT & ORD
+  UI --> MISC
+  RELAY & DRAFT & ORD & MISC --> STT & TR & TTS & LLM
+  RELAY & DRAFT & ORD & MISC --> DB & ST
+  DB --> RTS --> RT --> UI
+  UI -. "Sarvam down" .-> FB
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Why one `/api/relay` route?** Every chat message makes exactly one round trip from the browser. The server runs STT, translation, TTS, the Storage upload and the DB insert. The insert fans out over Realtime, and the other device auto-plays `audio_url`. Each sent message shows its end-to-end time (⚡ 2.8s) so you can see the latency target being hit.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Grounded extraction.** Prompts in `lib/llm.ts` say *"extract only what was said, null if not said"*. Output is parsed with **zod**, and `lib/numbers.ts` acts as a deterministic exactness guard: if the transcript contains one explicit currency amount, that number wins over the LLM's output.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🧰 Tech stack
 
-## Learn More
+- **Next.js 15** (App Router, Route Handlers), **TypeScript**, **Tailwind CSS v4**
+- **Sarvam AI**: Saaras v4 (STT, code-mixed), Mayura (translate), Bulbul v3 (TTS), sarvam-105b (LLM, JSON mode)
+- **Supabase**: Postgres, Storage, Realtime (`postgres_changes` + broadcast for live status)
+- **zod** for strict LLM output validation, **lucide-react** icons, **Noto Sans** (Tamil/Devanagari/Telugu/Kannada/Malayalam/Bengali/Gujarati) + **Baloo 2**
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/            routes: /, /shop, /shop/[sellerId], /product/[id], /seller, /seller/new,
+                /seller/onboard, /chat/[conversationId], /demo, /api/*
+components/     MicButton, VoiceCapture, ChatPanel, HearTheMaker, OrderVoiceCommand, …
+lib/sarvam.ts   all Sarvam calls: typed, timeouts, retries (429/5xx), speaker fallback
+lib/llm.ts      extraction / listing / edit / order-intent prompts + zod + heuristic fallbacks
+lib/numbers.ts  Indian number parsing (lakh, hazaar, ஆயிரம், native digits) + exactness guard
+lib/supabase/   browser client (publishable key) + server admin client (secret key)
+lib/client/     recorder hook, WAV encoder, audio player/queue, realtime registry
+supabase/migrations/0001_init.sql   schema, RLS, Realtime publication, Storage buckets
+scripts/seed.ts                     npm run seed
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🚀 Setup
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 1. Install
 
-## Deploy on Vercel
+```bash
+npm install
+cp .env.example .env.local     # Windows PowerShell: Copy-Item .env.example .env.local
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Environment variables (`.env.local`)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Variable | Where to find it |
+|---|---|
+| `SARVAM_API_KEY` | [dashboard.sarvam.ai](https://dashboard.sarvam.ai) → API keys |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the **publishable** key (`sb_publishable_…`); a legacy anon key also works |
+| `SUPABASE_SERVICE_ROLE_KEY` | the **secret** key (`sb_secret_…`); a legacy service_role key also works. **Server only.** |
+
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY` are accepted as aliases.
+
+### 3. Database
+
+In the Supabase dashboard, open **SQL Editor**, paste the contents of [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), and click **Run**.
+(Or use `supabase db push` with the Supabase CLI.) This creates the tables, RLS policies, the Realtime publication for `messages` and `orders`, and the public Storage buckets.
+
+### 4. Seed and run
+
+```bash
+npm run seed      # Meena (Tamil, Kanchipuram) + Ramesh (Hindi, Khurja), 4 products, 1 conversation, 1 order
+npm run dev       # http://localhost:3000
+```
+
+Check **http://localhost:3000/api/health**: it pings STT, Translate, TTS, the LLM, the DB and Storage, and reports timings.
+
+> 🎙️ Microphone access needs **HTTPS or localhost**. To test on a phone, deploy to Vercel (or use an HTTPS tunnel).
+
+## ☁️ Deploy to Vercel
+
+1. Push to GitHub and choose **Import Project** in Vercel (framework: Next.js, no settings needed).
+2. Add the four environment variables above (Production and Preview).
+3. Deploy, then open `/api/health` and `/demo`.
+
+All API keys stay server-side in Route Handlers. Only the Supabase URL and the publishable key reach the browser, and those are only used for read-only Realtime subscriptions under RLS.
+
+## 🛟 Reliability and fallbacks
+
+| If… | Then… |
+|---|---|
+| Sarvam STT fails or the key is missing | The client switches to the browser **SpeechRecognition**; the user sees a toast and taps again |
+| Sarvam TTS fails | Browser **speechSynthesis** speaks the text |
+| Translation fails | The original text is delivered, with a toast |
+| The LLM fails | Rule-based extraction (price, quantity, Indian number words), edits ("change price to …") and order intents in en/hi/ta |
+| Realtime can't connect | The chat polls every 2.5 s automatically (badge shows `SYNC` instead of `LIVE`) |
+| The browser blocks autoplay | A one-time **"Tap to enable sound"** gate unlocks audio |
+
+## 🔒 Security notes (hackathon scope)
+
+- There are no user accounts. A seller's identity is kept in `localStorage` on their phone, which is fine for a demo but not production auth.
+- RLS allows public **reads** only. All writes go through server routes using the secret key.
+- `.env.local` is git-ignored. `.env.example` contains no secrets.
+
+## 🗣️ Built by voice with Wispr Flow
+
+Much of this project, including the prompts, the copy and this README, was dictated with **Wispr Flow**. A voice-first product, built by voice.
+
+---
+
+**Hackathon:** India Runs on Voice (Scaler × Wispr), Small Business track
+**Author:** Nivedhita R · GitHub [@nivedhitaramu](https://github.com/nivedhitaramu)

@@ -53,6 +53,7 @@ export function ChatPanel({
 
   const sub = useRef<ReturnType<typeof subscribeConversation> | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const peerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const soundRef = useRef(soundEnabled);
   soundRef.current = soundEnabled;
 
@@ -118,7 +119,11 @@ export function ChatPanel({
           if (kind === "INSERT" && m.sender !== side) autoPlay(m);
         },
         onStatus: (st) => {
-          if (st.side !== side) setPeerState(st.state);
+          if (st.side === side) return; // ignore our own broadcasts
+          setPeerState(st.state);
+          // Safety: clear a stale indicator if the peer's tab closed mid-recording.
+          if (peerTimer.current) clearTimeout(peerTimer.current);
+          if (st.state !== "idle") peerTimer.current = setTimeout(() => setPeerState("idle"), 35_000);
         },
         onConnection: setLive,
       },
