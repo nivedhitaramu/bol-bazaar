@@ -2,8 +2,18 @@
  * Central env access. Supports both the new Supabase key names
  * (sb_publishable_... / sb_secret_...) and the legacy anon / service_role names.
  */
+/** Project URL only — strips accidental paths like "/rest/v1/" copied from the dashboard. */
+export function normalizeSupabaseUrl(raw: string | undefined): string | undefined {
+  if (!raw?.trim()) return undefined;
+  try {
+    return new URL(raw.trim()).origin;
+  } catch {
+    return raw.trim().replace(/\/+$/, "");
+  }
+}
+
 export function supabaseUrl(): string | undefined {
-  return process.env.NEXT_PUBLIC_SUPABASE_URL || undefined;
+  return normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
 }
 
 export function supabasePublishableKey(): string | undefined {

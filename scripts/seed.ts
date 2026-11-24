@@ -8,10 +8,11 @@ config();
 
 import { createClient } from "@supabase/supabase-js";
 import { seedDemo } from "../lib/seed";
+import { normalizeSupabaseUrl } from "../lib/env";
 import { sarvamAvailable, textToSpeech } from "../lib/sarvam";
 
 async function main() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
     console.error("✗ Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY) in .env.local");
