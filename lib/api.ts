@@ -63,10 +63,15 @@ export async function translateSafe(
   }
 }
 
-export async function ttsSafe(text: string, lang: string, gender: "female" | "male" = "female") {
+export async function ttsSafe(
+  text: string,
+  lang: string,
+  gender: "female" | "male" = "female",
+  role: "seller" | "buyer" = "seller"
+) {
   if (!sarvamAvailable() || !text.trim()) return null;
   try {
-    return await textToSpeech(text, lang, gender);
+    return await textToSpeech(text, lang, gender, role);
   } catch (e) {
     console.warn("tts failed:", (e as Error).message);
     return null;

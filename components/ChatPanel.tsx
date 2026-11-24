@@ -1,0 +1,405 @@
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { ArrowLeftRight, Check, Keyboard, Loader2, Package, Play, Send, Truck, Wifi, WifiOff, Zap } from "lucide-react";
+import { MicButton } from "./MicButton";
+import { useToast } from "./Toast";
+import { useVoiceInput, type VoiceResult } from "@/lib/client/useVoiceInput";
+import { getJson, postVoice, SwitchedToBrowserStt } from "@/lib/client/api";
+import { play, speak } from "@/lib/client/player";
+import { type PeerState, subscribeConversation, subscribeOrders } from "@/lib/client/realtime";
+import { translator } from "@/lib/i18n";
+import { langInfo, normalizeLang } from "@/lib/languages";
+import { formatINR, listingFor, type Conversation, type Message, type Order, type Product, type Seller } from "@/lib/types";
+
+type ConvData = {
+  conversation: Conversation & { seller: Seller; product: Pick<Product, "id" | "name" | "photo_url" | "price" | "listing"> | null };
+  messages: Message[];
+  orders: Order[];
+};
+
+type RelayResponse = {
+  message: Message;
+  translatedOk: boolean;
+  ttsOk: boolean;
+  timings: { stt_ms: number; translate_ms: number; tts_ms: number; store_ms: number; total_ms: number };
+};
+
+export function ChatPanel({
+  conversationId,
+  side,
+  soundEnabled,
+  compact = false,
+  panelId,
+}: {
+  conversationId: string;
+  side: "buyer" | "seller";
+  soundEnabled: boolean;
+  compact?: boolean;
+  panelId: string;
+}) {
+  const { toast } = useToast();
+  const [data, setData] = useState<ConvData | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [myState, setMyState] = useState<PeerState>("idle");
+  const [peerState, setPeerState] = useState<PeerState>("idle");
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [latency, setLatency] = useState<Record<string, number>>({});
+  const [live, setLive] = useState(false);
+  const [showText, setShowText] = useState(false);
+  const [text, setText] = useState("");
+
+  const sub = useRef<ReturnType<typeof subscribeConversation> | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const soundRef = useRef(soundEnabled);
+  soundRef.current = soundEnabled;
+
+  const myLang = data ? normalizeLang(side === "buyer" ? data.conversation.buyer_language : data.conversation.seller.language) : "en-IN";
+  const theirLang = data ? normalizeLang(side === "buyer" ? data.conversation.seller.language : data.conversation.buyer_language) : "en-IN";
+  const t = translator(myLang);
+  const peerName = data ? (side === "buyer" ? data.conversation.seller.name : data.conversation.buyer_name) : "";
+  const myLangRef = useRef(myLang);
+  myLangRef.current = myLang;
+
+  // Load
+  useEffect(() => {
+    let cancelled = false;
+    getJson<ConvData>(`/api/conversations/${conversationId}`)
+      .then((d) => {
+        if (cancelled) return;
+        setData(d);
+        setMessages(d.messages);
+        setOrders(d.orders);
+      })
+      .catch(() => !cancelled && setLoadError(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId]);
+
+  const autoPlay = useCallback(
+    (m: Message) => {
+      if (!soundRef.current) return;
+      play(
+        { url: m.audio_url, text: m.translated_text ?? m.original_text, lang: myLangRef.current },
+        {
+          onStart: () => {
+            setPlayingId(m.id);
+            setMyState("speaking");
+          },
+          onEnd: () => {
+            setPlayingId(null);
+            setMyState((s) => (s === "speaking" ? "idle" : s));
+          },
+        }
+      );
+    },
+    []
+  );
+
+  // Realtime
+  useEffect(() => {
+    if (!data) return;
+    const s = subscribeConversation(
+      conversationId,
+      {
+        onMessage: (m, kind) => {
+          setMessages((xs) => {
+            const i = xs.findIndex((x) => x.id === m.id);
+            if (i >= 0) {
+              const copy = xs.slice();
+              copy[i] = { ...copy[i], ...m };
+              return copy;
+            }
+            return [...xs, m];
+          });
+          if (kind === "INSERT" && m.sender !== side) autoPlay(m);
+        },
+        onStatus: (st) => {
+          if (st.side !== side) setPeerState(st.state);
+        },
+        onConnection: setLive,
+      },
+      data.messages.map((m) => m.id)
+    );
+    sub.current = s;
+    const unsubOrders = subscribeOrders((o) => {
+      if (o.conversation_id !== conversationId) return;
+      setOrders((xs) => {
+        const i = xs.findIndex((x) => x.id === o.id);
+        if (i < 0) return [o, ...xs];
+        const copy = xs.slice();
+        copy[i] = o;
+        return copy;
+      });
+    });
+    return () => {
+      s.unsubscribe();
+      unsubOrders();
+      sub.current = null;
+    };
+  }, [data, conversationId, side, autoPlay]);
+
+  // Auto-scroll
+  useEffect(() => {
+    const el = scroller.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages.length, peerState]);
+
+  const status = useCallback(
+    (state: PeerState) => {
+      setMyState(state);
+      sub.current?.sendStatus({ side, state, panel: panelId });
+    },
+    [side, panelId]
+  );
+
+  const send = async (input: VoiceResult) => {
+    status("translating");
+    try {
+      const r = await postVoice<RelayResponse>("/api/relay", input, { conversationId, sender: side });
+      setMessages((xs) => (xs.some((x) => x.id === r.message.id) ? xs : [...xs, r.message]));
+      setLatency((l) => ({ ...l, [r.message.id]: r.timings.total_ms }));
+      if (!r.translatedOk || !r.ttsOk) toast(t("fallbackVoice"));
+    } catch (e) {
+      if (e instanceof SwitchedToBrowserStt) toast(`${t("fallbackStt")} — ${t("tapToSpeak")}`);
+      else toast(t("errorGeneric"), "error");
+    } finally {
+      status("idle");
+    }
+  };
+
+  const voice = useVoiceInput({
+    lang: myLang,
+    onStart: () => status("listening"),
+    onResult: send,
+    onError: (k) => {
+      status("idle");
+      if (k !== "short") {
+        toast(t("errorMic"), "error");
+        setShowText(true);
+      }
+    },
+  });
+
+  const replay = (m: Message) => {
+    const mine = m.sender === side;
+    setPlayingId(m.id);
+    if (mine) speak(m.original_text, myLang, { onEnd: () => setPlayingId(null) });
+    else
+      play(
+        { url: m.audio_url, text: m.translated_text ?? m.original_text, lang: myLang },
+        { onEnd: () => setPlayingId(null) }
+      );
+  };
+
+  if (loadError)
+    return (
+      <div className="grid h-full place-items-center p-6 text-center text-muted">
+        <p>{t("errorGeneric")}</p>
+      </div>
+    );
+  if (!data)
+    return (
+      <div className="grid h-full min-h-60 place-items-center">
+        <Loader2 className="size-8 animate-spin text-maroon" />
+      </div>
+    );
+
+  const product = data.conversation.product;
+  const productTitle = product ? (listingFor(product.listing, myLang.split("-")[0])?.title ?? product.name) : null;
+  const order = orders[0];
+  const busy = myState === "translating";
+
+  const peerLabel =
+    peerState === "listening" ? `${peerName}: ${t("listening")}` : peerState === "translating" ? `${peerName}: ${t("translating")}` : null;
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-cream">
+      {/* Header */}
+      <div className="flex items-center gap-3 border-b border-sand bg-white px-3 py-2">
+        <div className="grid size-11 shrink-0 place-items-center rounded-full bg-maroon font-display text-lg font-bold text-white">
+          {peerName.slice(0, 1)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-bold leading-tight">{peerName}</p>
+          <p className="flex items-center gap-1 text-xs font-semibold text-muted">
+            <span className="rounded bg-sand px-1.5 py-0.5">{langInfo(myLang).native}</span>
+            <ArrowLeftRight className="size-3" />
+            <span className="rounded bg-turmeric-soft px-1.5 py-0.5">{langInfo(theirLang).native}</span>
+          </p>
+        </div>
+        <span
+          className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold ${live ? "bg-leaf/10 text-leaf" : "bg-sand text-muted"}`}
+          title={live ? "Realtime connected" : "Polling"}
+        >
+          {live ? <Wifi className="size-3" /> : <WifiOff className="size-3" />}
+          {live ? "LIVE" : "SYNC"}
+        </span>
+      </div>
+
+      {/* Product + order strip */}
+      {product && !compact && (
+        <Link href={`/product/${product.id}`} className="flex items-center gap-3 border-b border-sand bg-white/70 px-3 py-2">
+          {product.photo_url && <img src={product.photo_url} alt="" className="size-10 rounded-lg object-cover" />}
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{productTitle}</span>
+          <span className="text-sm font-extrabold text-saffron">{formatINR(product.price)}</span>
+        </Link>
+      )}
+      {order && <OrderTracker order={order} t={t} />}
+
+      {/* Messages */}
+      <div ref={scroller} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4" aria-live="polite">
+        {messages.map((m) => {
+          const mine = m.sender === side;
+          const big = mine ? m.original_text : (m.translated_text ?? m.original_text);
+          const small = mine ? m.translated_text : m.original_text;
+          const smallLang = mine ? m.translated_language : m.original_language;
+          const playing = playingId === m.id;
+          return (
+            <div key={m.id} className={`msg-in flex ${mine ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-[85%] rounded-3xl px-4 py-3 shadow-sm ${
+                  mine ? "rounded-br-md bg-maroon text-white" : "rounded-bl-md bg-white text-ink"
+                } ${playing ? "ring-4 ring-turmeric/70" : ""}`}
+              >
+                <p className={`${compact ? "text-base" : "text-lg"} font-semibold leading-snug`}>{big}</p>
+                {small && small !== big && (
+                  <p className={`mt-1 text-sm leading-snug ${mine ? "text-white/65" : "text-muted"}`}>
+                    <span className="mr-1 text-[10px] font-bold uppercase tracking-wide opacity-80">
+                      {smallLang ? langInfo(smallLang).native : t("original")}
+                    </span>
+                    {small}
+                  </p>
+                )}
+                <div className={`mt-1.5 flex items-center gap-2 text-xs ${mine ? "text-white/70" : "text-muted"}`}>
+                  <button
+                    type="button"
+                    onClick={() => replay(m)}
+                    className={`flex min-h-8 items-center gap-1 rounded-full px-2 font-semibold ${mine ? "bg-white/15" : "bg-sand"}`}
+                    aria-label={t("replay")}
+                  >
+                    {playing ? (
+                      <span className="eq">
+                        <span /><span /><span />
+                      </span>
+                    ) : (
+                      <Play className="size-3.5" />
+                    )}
+                    {t("replay")}
+                  </button>
+                  {latency[m.id] != null && (
+                    <span className="flex items-center gap-0.5 font-bold" title="speech → stored & delivered">
+                      <Zap className="size-3" />
+                      {(latency[m.id] / 1000).toFixed(1)}s
+                    </span>
+                  )}
+                  <span className="ml-auto">{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {peerLabel && (
+          <div className="msg-in flex justify-start">
+            <div className="flex items-center gap-2 rounded-3xl rounded-bl-md bg-white px-4 py-3 text-sm font-semibold text-maroon shadow-sm">
+              <span className="dots">
+                <span /><span /><span />
+              </span>
+              {peerLabel}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Composer */}
+      <div className="border-t border-sand bg-white px-3 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2">
+        <p
+          className={`mb-1 h-5 text-center text-sm font-bold ${
+            myState === "listening" ? "text-saffron" : myState === "idle" ? "text-muted" : "text-maroon"
+          }`}
+          aria-live="polite"
+        >
+          {myState === "listening"
+            ? `${t("listening")} ${Math.ceil((voice.maxMs - voice.elapsed) / 1000)}s`
+            : myState === "translating"
+              ? t("translating")
+              : myState === "speaking"
+                ? t("speaking")
+                : t("tapToSpeak")}
+        </p>
+        {voice.interim && <p className="mb-1 text-center text-xs italic text-muted">“{voice.interim}”</p>}
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setShowText((s) => !s)}
+            className={`grid size-14 place-items-center rounded-full ${showText ? "bg-maroon text-white" : "bg-sand text-ink"}`}
+            aria-label={t("typeInstead")}
+          >
+            <Keyboard className="size-6" />
+          </button>
+          <MicButton
+            state={busy || voice.state === "processing" ? "busy" : voice.state === "recording" ? "recording" : "idle"}
+            level={voice.level}
+            progress={voice.elapsed / voice.maxMs}
+            onPress={voice.toggle}
+            size={compact ? "md" : "lg"}
+            label={voice.state === "recording" ? t("stop") : t("tapToSpeak")}
+          />
+          <div className="size-14" aria-hidden />
+        </div>
+        {showText && (
+          <form
+            className="mt-2 flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const s = text.trim();
+              if (!s || busy) return;
+              setText("");
+              send({ text: s });
+            }}
+          >
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              className="input"
+              placeholder={t("typeInstead")}
+              aria-label={t("typeInstead")}
+              lang={myLang}
+            />
+            <button type="submit" className="btn btn-primary shrink-0 px-4" disabled={busy || !text.trim()} aria-label={t("send")}>
+              <Send className="size-5" />
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OrderTracker({ order, t }: { order: Order; t: ReturnType<typeof translator> }) {
+  const steps = ["placed", "confirmed", "shipped", "delivered"] as const;
+  const idx = steps.indexOf(order.status);
+  const icons = [Package, Check, Truck, Check];
+  return (
+    <div className="flex items-center gap-1 border-b border-sand bg-turmeric-soft/60 px-3 py-2">
+      {steps.map((s, i) => {
+        const Icon = icons[i];
+        const done = i <= idx;
+        return (
+          <div key={s} className="flex flex-1 items-center gap-1">
+            <span
+              className={`grid size-7 shrink-0 place-items-center rounded-full transition ${done ? "bg-leaf text-white" : "bg-white text-muted"} ${i === idx ? "ring-2 ring-leaf/30" : ""}`}
+            >
+              <Icon className="size-3.5" />
+            </span>
+            <span className={`truncate text-[11px] font-bold ${done ? "text-leaf" : "text-muted"}`}>{t(`status_${s}`)}</span>
+            {i < steps.length - 1 && <span className={`h-0.5 flex-1 rounded ${i < idx ? "bg-leaf" : "bg-white"}`} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

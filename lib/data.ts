@@ -70,6 +70,16 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
   return (data ?? []) as Message[];
 }
 
+export async function getConversationOrders(conversationId: string): Promise<Order[]> {
+  const { data, error } = await getAdminSupabase()
+    .from("orders")
+    .select("*")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Order[];
+}
+
 export type DashboardData = {
   seller: Seller;
   products: Product[];

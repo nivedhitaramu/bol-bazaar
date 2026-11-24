@@ -163,7 +163,11 @@ export async function translateText(
 
 // ───────────────────────── Text to speech ─────────────────────────
 
-const SPEAKERS = { female: "kavya", male: "aditya" } as const;
+/** Distinct bulbul:v3 voices so buyer and seller sound different in a conversation. */
+const SPEAKERS = {
+  seller: { female: "kavya", male: "aditya" },
+  buyer: { female: "priya", male: "rahul" },
+} as const;
 const TTS_LANGS = new Set(["bn-IN", "en-IN", "gu-IN", "hi-IN", "kn-IN", "ml-IN", "mr-IN", "od-IN", "pa-IN", "ta-IN", "te-IN"]);
 
 export type TtsResult = { base64: string; mime: string };
@@ -171,7 +175,8 @@ export type TtsResult = { base64: string; mime: string };
 export async function textToSpeech(
   text: string,
   language: string,
-  gender: "female" | "male" = "female"
+  gender: "female" | "male" = "female",
+  role: "seller" | "buyer" = "seller"
 ): Promise<TtsResult> {
   const clean = text.replace(/\s+/g, " ").trim().slice(0, 2400);
   if (!clean) throw new SarvamError("tts", "empty text");
@@ -197,7 +202,7 @@ export async function textToSpeech(
 
   let data: { audios: string[] };
   try {
-    data = await req(models.tts() === "bulbul:v3" ? SPEAKERS[gender] : undefined);
+    data = await req(models.tts() === "bulbul:v3" ? SPEAKERS[role][gender] : undefined);
   } catch (e) {
     // If the speaker name was rejected (model change), retry with the model's default speaker.
     if (e instanceof SarvamError && e.status === 400 && /speaker/i.test(e.message)) data = await req();
