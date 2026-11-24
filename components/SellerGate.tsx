@@ -1,0 +1,58 @@
+"use client";
+import Link from "next/link";
+import { useState } from "react";
+import { Loader2, Sparkles, Store } from "lucide-react";
+import { useLang } from "./LangProvider";
+import { useToast } from "./Toast";
+import { type LocalSeller, useSeller } from "@/lib/client/useSeller";
+import { DEMO } from "@/lib/demoIds";
+import { getJson } from "@/lib/client/api";
+import type { Seller } from "@/lib/types";
+
+/** Renders children with the local seller, or an onboarding prompt. */
+export function SellerGate({ children }: { children: (seller: LocalSeller, setSeller: (s: LocalSeller | null) => void) => React.ReactNode }) {
+  const { seller, ready, setSeller } = useSeller();
+  const { t } = useLang();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+
+  if (!ready) {
+    return (
+      <div className="grid min-h-[50dvh] place-items-center">
+        <Loader2 className="size-8 animate-spin text-maroon" />
+      </div>
+    );
+  }
+  if (seller) return <>{children(seller, setSeller)}</>;
+
+  const useDemo = async () => {
+    setLoading(true);
+    try {
+      const s = await getJson<Seller>(`/api/sellers/${DEMO.meenaId}`);
+      setSeller({ id: s.id, name: s.name, language: s.language, gender: s.gender, city: s.city });
+    } catch {
+      toast(t("errorGeneric"), "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-md px-4 py-12 text-center">
+      <div className="card p-8">
+        <div className="mx-auto mb-4 grid size-20 place-items-center rounded-full bg-turmeric-soft">
+          <Store className="size-10 text-maroon" />
+        </div>
+        <h1 className="font-display text-2xl font-bold text-maroon">{t("notOnboarded")}</h1>
+        <div className="mt-6 flex flex-col gap-3">
+          <Link href="/seller/onboard" className="btn btn-primary text-lg">
+            <Sparkles className="size-5" /> {t("startSelling")}
+          </Link>
+          <button onClick={useDemo} disabled={loading} className="btn btn-ghost">
+            {loading ? <Loader2 className="size-5 animate-spin" /> : null} {t("useDemoSeller")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
