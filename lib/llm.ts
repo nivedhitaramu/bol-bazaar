@@ -115,10 +115,10 @@ STRICT RULES:
 - If a field was not mentioned, it MUST be null. An empty field is far better than an invented one.
 - product_name: the product's name exactly as the seller said it (keep their words and proper nouns, e.g. "Kanchipuram silk saree").
 - category: choose one of ${JSON.stringify(CATEGORIES)} only if the product type makes it obvious, else null.
-- material: in English, only if stated.
+- material: translated to plain English (e.g. "பட்டு" → "silk", "मिट्टी" → "clay"), only if stated.
 - craft_story: 1–2 English sentences using ONLY what they said about who made it, how, how long, tradition, place. null if nothing said.
 - price: integer rupees per unit. quantity: integer units available.
-- size_options: sizes/variants/colours the seller said are available, in English, else null.
+- size_options: sizes/variants/colours the seller said are available, translated to English, else null.
 
 ${NUMBER_RULES}`;
 

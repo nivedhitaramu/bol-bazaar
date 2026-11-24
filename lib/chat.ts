@@ -40,7 +40,7 @@ export async function postMessage(opts: {
   const { from, to } = sideLanguages(conv, sender);
 
   let t0 = Date.now();
-  const tr = opts.translated != null ? { text: opts.translated, ok: true } : await translateSafe(text, from, to, "modern-colloquial");
+  const tr = opts.translated != null ? { text: opts.translated, ok: true } : await translateSafe(text, from, to, "formal");
   const translate_ms = Date.now() - t0;
 
   t0 = Date.now();

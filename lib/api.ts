@@ -51,7 +51,7 @@ export async function translateSafe(
   text: string,
   source: string,
   target: string,
-  mode: TranslateMode = "modern-colloquial"
+  mode: TranslateMode = "formal"
 ): Promise<{ text: string; ok: boolean }> {
   if (!text.trim() || source === target) return { text, ok: true };
   if (!sarvamAvailable()) return { text, ok: false };
