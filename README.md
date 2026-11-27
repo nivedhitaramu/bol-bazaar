@@ -66,6 +66,12 @@ Bol Bazaar removes both.
 - **📦 Voice order management**: "confirm order", "ship tomorrow", "shipped" in any language, mapped to an order with a translated, spoken notification to the buyer.
 - **🖥️ /demo**: Tamil seller and Hindi buyer **side by side on one screen**, with a one-click **Reset demo**.
 - **🌐 9 languages**: Tamil, Hindi, English, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati. Core UI is fully translated into Tamil and Hindi.
+- **🛡️ When things go wrong (chat)**: Bol Bazaar doesn't guess.
+  - **Numbers:** any message with a price, quantity or phone number is read back ("I heard ₹8,500. Is that right?") and is only sent after a spoken *yes / haan / aamaa*.
+  - **Sound-alike words:** it asks about only that word: *"'zari'-ஆ, 'saree'-ஆ?"*.
+  - **Undo:** *"No, wrong" / "illa, thappu" / "nahi, galat"* takes back the last message on both screens.
+  - **Hearing trouble:** quiet or unclear input gets a spoken *"please come a little closer"*, and after two failed attempts the text box opens (replies are still spoken).
+  - **Translation failures:** if a translation fails, the original is shown, never a guess, and every number is back-checked.
 - **🛟 Works even when AI is down**: browser speech recognition and speech synthesis take over, and rule-based extraction keeps listings and order commands working. A small toast tells the user; nothing crashes.
 
 ## 🏪 Speak your shop online
@@ -84,13 +90,15 @@ How it works:
 - **Without keys:** rule-based extraction plus offline templates. Her own words appear in her language, and Meena and Ramesh have pre-written storefronts.
 - **Supabase:** run `supabase/migrations/0002_shop_profile.sql`, which adds the `sellers.shop` column. Until then, publishing returns a friendly "migration needed" message and storefronts still render.
 
-## 🎬 The demo moment (60 seconds)
+## 🎬 The demo (the story, in order)
 
-1. Open **`/demo`** on a laptop and tap **"Tap to enable sound"**.
-2. **Right panel (Priya, Hindi):** tap 🎤 and say *"नमस्ते, क्या यह साड़ी लाल रंग में मिलेगी?"*
-3. **Left panel (Meena, Tamil)** shows "Priya: Listening…", then the message arrives and is **spoken in Tamil**.
-4. Meena taps 🎤 and says *"ஆமாம், சிவப்பு நிறத்தில் இருக்கிறது, விலை எட்டாயிரத்து ஐநூறு"*. Priya **hears it in Hindi**.
-5. Meena uses the **order mic** and says *"ஆர்டரை உறுதி செய்"*. Priya's order tracker flips to **Confirmed** and she hears *"आपका ऑर्डर पक्का हो गया है"*.
+Open **`/demo`** and tap **"Tap to enable sound"**. The strip at the top walks through the story:
+
+1. **Speak your shop** opens the shop-setup page as Meena. Talk for a minute and get a storefront in Tamil, Hindi and English.
+2. **List by voice:** add a photo, then say *"இது காஞ்சிபுரம் பட்டுப் புடவை, விலை எட்டாயிரத்து ஐநூறு ரூபாய்…"*. The listing is written in 3 languages and read back to her.
+3. **Hands-free chat**, on the split screen. Turn on **Hands-free** in Priya's (Hindi) panel and say *"नमस्ते, क्या यह साड़ी लाल रंग में मिलेगी?"*. No tapping is needed. Meena's panel speaks it in Tamil. Meena answers *"ஆமாம், சிவப்பு நிறத்தில் இருக்கிறது, விலை எட்டாயிரத்து ஐநூறு"*, the price is read back for her "yes", and Priya hears it in Hindi.
+4. **Voice order confirm:** in Meena's order mic, say *"ஆர்டரை உறுதி செய்"*. Priya's tracker flips to **Confirmed** and she hears *"आपका ऑर्डर पक्का हो गया है"*.
+5. **Ask your shop:** on the seller dashboard, Meena asks *"Indru enna aachu?"* and hears a summary of the day in Tamil.
 
 Want it on two real devices? Click **"Buyer on phone"** in the demo header (or open `/chat/<id>?as=buyer` on a phone).
 
@@ -99,22 +107,25 @@ Want it on two real devices? Click **"Buyer on phone"** in the demo header (or o
 ```mermaid
 flowchart LR
   subgraph Browser["📱 Browser (mobile-first)"]
-    MIC["MediaRecorder → 16 kHz WAV<br/>(Web Audio API)"]
+    MIC["Tap-to-talk: MediaRecorder → 16 kHz WAV<br/>Hands-free: Web Audio VAD"]
     UI["Next.js UI<br/>Seller · Buyer · /demo"]
     FB["Fallbacks:<br/>SpeechRecognition / speechSynthesis"]
     RT["Supabase Realtime client<br/>(postgres_changes + broadcast)"]
   end
 
   subgraph Next["▲ Next.js Route Handlers (Vercel, server-only keys)"]
-    RELAY["/api/relay<br/>STT → Translate → TTS → store → insert"]
+    RELAY["/api/relay<br/>STT → checks (confirm · clarify · undo)<br/>→ protected translate → TTS → insert"]
+    PIPE["lib/translate<br/>detect → transliterate → protect names/numbers<br/>→ sarvam-translate → glossary → back-check → cache"]
+    STORE["lib/store<br/>SupabaseStore  |  in-memory demo store (no keys)"]
     DRAFT["/api/listing/draft<br/>STT → LLM extract → LLM listing → TTS"]
     ORD["/api/orders/voice<br/>STT → LLM intent → status → notify"]
+    SHOP["/api/shop/* · /api/ask<br/>Speak your shop · Ask your shop"]
     MISC["/api/speak · /api/stt · /api/health<br/>/api/products · /api/sellers · /api/demo/reset"]
   end
 
   subgraph Sarvam["🇮🇳 Sarvam AI"]
     STT["Saaras v4<br/>speech-to-text"]
-    TR["Mayura<br/>translate"]
+    TR["sarvam-translate v1<br/>(Mayura fallback)"]
     TTS["Bulbul v3<br/>text-to-speech"]
     LLM["sarvam-105b<br/>JSON extraction"]
   end
@@ -125,10 +136,11 @@ flowchart LR
     RTS(("Realtime"))
   end
 
-  MIC --> RELAY & DRAFT & ORD
+  MIC --> RELAY & DRAFT & ORD & SHOP
   UI --> MISC
-  RELAY & DRAFT & ORD & MISC --> STT & TR & TTS & LLM
-  RELAY & DRAFT & ORD & MISC --> DB & ST
+  RELAY & SHOP & MISC --> PIPE --> TR
+  RELAY & DRAFT & ORD & SHOP & MISC --> STT & TTS & LLM
+  RELAY & DRAFT & ORD & SHOP & MISC --> STORE --> DB & ST
   DB --> RTS --> RT --> UI
   UI -. "Sarvam down" .-> FB
 ```
@@ -154,14 +166,14 @@ A wrong price or name breaks trust, so every message goes through `lib/translate
 Why digits rather than `⟦n⟧` tokens for numbers? We measured it on the live API. "இந்த புடவை ⟦1⟧ ரூபாய், ⟦2⟧ இருக்கு" came back as "…⟦2⟧ **रुपये**": the quantity 2 turned into "2 rupees". With digits, the model kept both the value and the meaning: "इस साड़ी की कीमत 8,500 रुपये है और इसमें 2 हैं।" Tokens remain the third retry strategy.
 
 ```bash
-npm test                  # 12 unit tests for protection, restore, back-check, glossary, dictionary (offline)
+npm test                  # 31 unit tests: translation protection, voice activity detection, Ask-your-shop, recovery (offline)
 npm run translate:demo    # runs the 3 accuracy sentences through the live pipeline (or --offline)
 ```
 
 ## 🧰 Tech stack
 
 - **Next.js 15** (App Router, Route Handlers), **TypeScript**, **Tailwind CSS v4**
-- **Sarvam AI**: Saaras v4 (STT, code-mixed), Mayura (translate), Bulbul v3 (TTS), sarvam-105b (LLM, JSON mode)
+- **Sarvam AI**: Saaras v4 (STT, code-mixed), sarvam-translate v1 (translate; Mayura fallback), `/text-lid` + `/transliterate`, Bulbul v3 (TTS), sarvam-105b (LLM, JSON mode)
 - **Supabase**: Postgres, Storage, Realtime (`postgres_changes` + broadcast for live status)
 - **zod** for strict LLM output validation, **lucide-react** icons, **Noto Sans** (Tamil/Devanagari/Telugu/Kannada/Malayalam/Bengali/Gujarati) + **Baloo 2**
 
@@ -173,6 +185,11 @@ lib/sarvam.ts   all Sarvam calls: typed, timeouts, retries (429/5xx), speaker fa
 lib/llm.ts      extraction / listing / edit / order-intent prompts + zod + heuristic fallbacks
 lib/numbers.ts  Indian number parsing (lakh, hazaar, எட்டாயிரத்து, native digits), number spans, back-check
 lib/translate/  accuracy pipeline: detect → transliterate → protect → translate → restore → glossary → back-check → cache
+lib/store/      Store interface: SupabaseStore + seeded in-memory store (keyless demo / Docker)
+lib/recovery.ts yes/no, undo, read-back, sound-alike words, prompts (en/hi/ta)
+lib/ask/        Ask your shop: intent rules + answer templates
+lib/shop.ts     Speak your shop: extraction + 3-language storefront copy
+lib/client/vad.ts  hands-free voice activity detection
 tests/          node:test unit tests (npm test)
 lib/supabase/   browser client (publishable key) + server admin client (secret key)
 lib/client/     recorder hook, WAV encoder, audio player/queue, realtime registry
