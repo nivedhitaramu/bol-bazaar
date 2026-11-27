@@ -5,6 +5,7 @@ import { getStore } from "@/lib/store";
 import { ensureConversation, loadConversation, postMessage } from "@/lib/chat";
 import { normalizeLang, shortOf } from "@/lib/languages";
 import { orderPlacedText } from "@/lib/orders";
+import { verifyBuyerSession } from "@/lib/authServer";
 import type { Listing } from "@/lib/types";
 
 const Body = z.object({
@@ -12,6 +13,7 @@ const Body = z.object({
   buyerName: z.string().trim().min(1).max(60),
   buyerLanguage: z.string(),
   quantity: z.number().int().min(1).max(99),
+  buyerToken: z.string().optional(),
 });
 
 /** Buyer places an order → conversation (find-or-create) + order + translated chat notice to the seller. */
@@ -23,6 +25,10 @@ export async function POST(req: NextRequest) {
     if (!product || product.status !== "published") throw new ApiError(404, "not_found", "Product not available");
 
     const conversationId = await ensureConversation(product.id, product.seller_id, b.buyerName, buyerLang);
+
+    // Lightweight buyer identity: remember this conversation for "My chats & orders".
+    const buyerId = verifyBuyerSession(b.buyerToken);
+    if (buyerId) await getStore().attachBuyer(conversationId, buyerId).catch((e) => console.warn("attachBuyer:", (e as Error).message));
     const order = await getStore().insertOrder({
       product_id: product.id,
       conversation_id: conversationId,

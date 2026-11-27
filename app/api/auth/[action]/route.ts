@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
-import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { ApiError, fail, ok } from "@/lib/api";
 import { getStore } from "@/lib/store";
-import { readEnv, supabaseSecretKey } from "@/lib/env";
+import { sessionSecret } from "@/lib/authServer";
 import { DEMO } from "@/lib/demoIds";
 import {
   emptyAuth,
@@ -31,16 +30,6 @@ export const dynamic = "force-dynamic";
  *   GET  /api/auth/sellers                             → shops that can log in with a PIN
  *   POST /api/auth/login   { sellerId, pin }           → { seller, token } 5 wrong tries → locked 5 min
  */
-
-const g = globalThis as unknown as { __bbSessionSecret?: string };
-/** AUTH_SECRET, else derived from the Supabase secret key, else random per process (keyless demo). */
-function sessionSecret(): string {
-  const explicit = readEnv("AUTH_SECRET");
-  if (explicit) return explicit;
-  const sb = supabaseSecretKey();
-  if (sb) return createHash("sha256").update(`${sb}:bol-bazaar-session`).digest("hex");
-  return (g.__bbSessionSecret ??= randomBytes(32).toString("hex"));
-}
 
 const DEMO_IDS = new Set<string>([DEMO.meenaId, DEMO.rameshId]);
 const publicSeller = (s: Seller) => ({ id: s.id, name: s.name, language: s.language, gender: s.gender, city: s.city });

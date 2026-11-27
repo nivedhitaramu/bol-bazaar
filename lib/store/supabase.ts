@@ -2,7 +2,17 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAdminSupabase } from "../supabase/server";
 import { seedDemo } from "../seed";
-import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
+import type { Buyer, BuyerActivity, Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
+
+/** buyers / conversations.buyer_id come from migration 0004. */
+function buyerCheck<T>(res: { data: T; error: { message: string; code?: string } | null }): T {
+  if (res.error) {
+    if (/buyers|buyer_id/i.test(res.error.message) || res.error.code === "42P01" || res.error.code === "42703" || res.error.code === "PGRST205" || res.error.code === "PGRST204")
+      throw new Error("MIGRATION_NEEDED: run supabase/migrations/0004_buyers.sql in the Supabase SQL Editor");
+    throw new Error(res.error.message);
+  }
+  return res.data;
+}
 import type { AuthRecord } from "../authCore";
 
 /** seller_auth comes from migration 0003 — say so clearly instead of a cryptic DB error. */
@@ -57,6 +67,49 @@ export class SupabaseStore implements Store {
     if (!ids.length) return [];
     const rows = (check(await this.sb.from("sellers").select("*").in("id", ids)) ?? []) as Seller[];
     return rows.map((s) => ({ id: s.id, name: s.name, city: s.city, shop: s.shop ?? null }));
+  }
+
+  async createBuyer(name: string, language: string) {
+    return buyerCheck(await this.sb.from("buyers").insert({ name, language }).select("*").single()) as Buyer;
+  }
+
+  async getBuyer(id: string) {
+    return buyerCheck(await this.sb.from("buyers").select("*").eq("id", id).maybeSingle()) as Buyer | null;
+  }
+
+  async setBuyerKeyHash(id: string, keyHash: string) {
+    buyerCheck(await this.sb.from("buyers").update({ key_hash: keyHash }).eq("id", id));
+  }
+
+  async findBuyerByKeyHash(keyHash: string) {
+    return buyerCheck(await this.sb.from("buyers").select("*").eq("key_hash", keyHash).maybeSingle()) as Buyer | null;
+  }
+
+  async attachBuyer(conversationId: string, buyerId: string) {
+    buyerCheck(await this.sb.from("conversations").update({ buyer_id: buyerId }).eq("id", conversationId).is("buyer_id", null));
+  }
+
+  async getBuyerActivity(buyerId: string): Promise<BuyerActivity> {
+    const convs = (buyerCheck(
+      await this.sb
+        .from("conversations")
+        .select("*, seller:sellers(id, name, city), product:products(id, name, photo_url, price, listing)")
+        .eq("buyer_id", buyerId)
+        .order("created_at", { ascending: false })
+        .limit(50)
+    ) ?? []) as Array<Omit<BuyerActivity["conversations"][number], "last">>;
+    const ids = convs.map((c) => c.id);
+    if (!ids.length) return { conversations: [], orders: [] };
+    const [msgs, orders] = await Promise.all([
+      this.sb.from("messages").select("*").in("conversation_id", ids).order("created_at", { ascending: false }).limit(300),
+      this.sb.from("orders").select("*, product:products(id, name, photo_url, price, listing)").in("conversation_id", ids).order("created_at", { ascending: false }),
+    ]);
+    const last = new Map<string, Message>();
+    for (const m of (check(msgs) ?? []) as Message[]) if (!last.has(m.conversation_id)) last.set(m.conversation_id, m);
+    const conversations = convs
+      .map((c) => ({ ...c, last: last.get(c.id) ?? null }))
+      .sort((a, b) => ((b.last?.created_at ?? b.created_at) > (a.last?.created_at ?? a.created_at) ? 1 : -1));
+    return { conversations, orders: (check(orders) ?? []) as BuyerActivity["orders"] };
   }
 
   async supportsShops() {

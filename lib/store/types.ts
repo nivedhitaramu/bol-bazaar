@@ -1,4 +1,4 @@
-import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
+import type { Buyer, BuyerActivity, Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
 import type { SeedResult, SeedTts } from "../seed";
 import type { AuthRecord } from "../authCore";
 
@@ -48,6 +48,15 @@ export interface Store {
   findAuthByKeyHash(keyHash: string): Promise<AuthRecord | null>;
   /** Sellers who can log in with a PIN (for "I already have a shop"). */
   listLoginSellers(): Promise<Array<Pick<Seller, "id" | "name" | "city" | "shop">>>;
+
+  /** Lightweight buyer identity (migration 0004 in Supabase). */
+  createBuyer(name: string, language: string): Promise<Buyer>;
+  getBuyer(id: string): Promise<Buyer | null>;
+  setBuyerKeyHash(id: string, keyHash: string): Promise<void>;
+  findBuyerByKeyHash(keyHash: string): Promise<Buyer | null>;
+  /** Link a conversation to a buyer (never takes one that belongs to someone else). */
+  attachBuyer(conversationId: string, buyerId: string): Promise<void>;
+  getBuyerActivity(buyerId: string): Promise<BuyerActivity>;
 
   getProduct(id: string): Promise<(Product & { seller: Seller }) | null>;
   listPublished(filters?: { category?: string; state?: string; sellerId?: string }): Promise<ProductWithSeller[]>;

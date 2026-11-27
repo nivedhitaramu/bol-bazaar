@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "crypto";
 import { buildSeedRows, type SeedResult } from "../seed";
-import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
+import type { Buyer, BuyerActivity, Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
 import type { AuthRecord } from "../authCore";
 import { assembleDashboard } from "./shared";
 import type { ConversationFull, DashboardData, NewMessage, OpenOrder, ProductInput, ProductWithSeller, Store } from "./types";
@@ -14,6 +14,7 @@ type Db = {
   orders: Order[];
   files: Map<string, { data: Buffer; type: string }>;
   auth: Map<string, AuthRecord>;
+  buyers: Map<string, Buyer>;
 };
 
 const MAX_FILES = 300;
@@ -31,6 +32,7 @@ function fresh(): Db {
     orders: [rows.order],
     files: g.__bolBazaarMemoryDb?.files ?? new Map(),
     auth: new Map(),
+    buyers: g.__bolBazaarMemoryDb?.buyers ?? new Map(),
   };
 }
 
@@ -88,6 +90,56 @@ export class MemoryStore implements Store {
     return d.sellers
       .filter((s) => d.auth.get(s.id)?.pin_hash)
       .map((s) => clone({ id: s.id, name: s.name, city: s.city, shop: s.shop ?? null }));
+  }
+
+  async createBuyer(name: string, language: string) {
+    const b: Buyer = { id: randomUUID(), name, language, key_hash: null, created_at: now() };
+    db().buyers.set(b.id, b);
+    return { ...b };
+  }
+
+  async getBuyer(id: string) {
+    const b = db().buyers.get(id);
+    return b ? { ...b } : null;
+  }
+
+  async setBuyerKeyHash(id: string, keyHash: string) {
+    const b = db().buyers.get(id);
+    if (b) b.key_hash = keyHash;
+  }
+
+  async findBuyerByKeyHash(keyHash: string) {
+    for (const b of db().buyers.values()) if (b.key_hash === keyHash) return { ...b };
+    return null;
+  }
+
+  async attachBuyer(conversationId: string, buyerId: string) {
+    const c = db().conversations.find((x) => x.id === conversationId);
+    if (c && !c.buyer_id) c.buyer_id = buyerId;
+  }
+
+  async getBuyerActivity(buyerId: string): Promise<BuyerActivity> {
+    const d = db();
+    const convs = d.conversations.filter((c) => c.buyer_id === buyerId);
+    const ids = new Set(convs.map((c) => c.id));
+    const pById = new Map(d.products.map((p) => [p.id, p]));
+    const pick = (id: string | null) => {
+      const p = id ? pById.get(id) : undefined;
+      return p ? { id: p.id, name: p.name, photo_url: p.photo_url, price: p.price, listing: p.listing } : null;
+    };
+    const conversations = convs
+      .map((c) => {
+        const s = d.sellers.find((x) => x.id === c.seller_id);
+        const msgs = d.messages.filter((m) => m.conversation_id === c.id).sort(byNewest);
+        return { ...c, seller: { id: c.seller_id, name: s?.name ?? "", city: s?.city ?? null }, product: pick(c.product_id), last: msgs[0] ?? null };
+      })
+      .sort((a, b) => ((b.last?.created_at ?? b.created_at) > (a.last?.created_at ?? a.created_at) ? 1 : -1));
+    const orders = d.orders
+      .filter((o) => o.conversation_id && ids.has(o.conversation_id))
+      .sort(byNewest)
+      .map((o) => ({ ...o, product: pick(o.product_id)! }))
+      .filter((o) => o.product);
+    return clone({ conversations, orders });
   }
 
   async supportsShops() {

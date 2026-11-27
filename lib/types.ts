@@ -71,6 +71,8 @@ export type Conversation = {
   seller_id: string;
   buyer_name: string;
   buyer_language: string;
+  /** Set when the buyer has a lightweight identity (migration 0004). */
+  buyer_id?: string | null;
   created_at: string;
 };
 
@@ -120,3 +122,17 @@ export function formatINR(n: number | null | undefined): string {
   if (n == null) return "—";
   return "₹" + n.toLocaleString("en-IN");
 }
+
+/** Lightweight buyer identity — name + language; "Save my chats" link (hash only). */
+export type Buyer = { id: string; name: string; language: string; key_hash: string | null; created_at: string };
+
+export type BuyerActivity = {
+  conversations: Array<
+    Conversation & {
+      seller: Pick<Seller, "id" | "name" | "city">;
+      product: Pick<Product, "id" | "name" | "photo_url" | "price" | "listing"> | null;
+      last: Message | null;
+    }
+  >;
+  orders: Array<Order & { product: Pick<Product, "id" | "name" | "photo_url" | "price" | "listing"> }>;
+};
