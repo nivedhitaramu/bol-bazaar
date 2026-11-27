@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftRight, Check, Keyboard, Loader2, Package, Play, Send, Truck, Wifi, WifiOff, Zap } from "lucide-react";
 import { MicButton } from "./MicButton";
+import { HandsFreeStatus, HandsFreeToggle } from "./HandsFree";
+import { useHandsFree } from "@/lib/client/useHandsFree";
 import { useToast } from "./Toast";
 import { useVoiceInput, type VoiceResult } from "@/lib/client/useVoiceInput";
 import { getJson, postVoice, SwitchedToBrowserStt } from "@/lib/client/api";
@@ -192,6 +194,29 @@ export function ChatPanel({
     },
   });
 
+  const busy = myState === "translating";
+
+  // ── Hands-free: continuous listening, each utterance → /api/relay (tap-to-talk stays the default) ──
+  const [handsFree, setHandsFree] = useState(false);
+  const hf = useHandsFree({
+    id: panelId,
+    enabled: handsFree,
+    busy,
+    lang: myLang,
+    onUtterance: send,
+    onSpeechStart: () => status("listening"),
+    onDiscard: () => status("idle"),
+    onTooQuiet: () => {
+      toast(t("comeCloser"));
+      speak(t("comeCloser"), myLang);
+    },
+    onStop: (reason) => {
+      setHandsFree(false);
+      if (reason === "mic") toast(t("errorMic"), "error");
+    },
+  });
+  const hfPhase: "sending" | "speaking" | null = busy ? "sending" : hf.playing || myState === "speaking" ? "speaking" : null;
+
   const replay = (m: Message) => {
     const mine = m.sender === side;
     setPlayingId(m.id);
@@ -219,7 +244,7 @@ export function ChatPanel({
   const product = data.conversation.product;
   const productTitle = product ? (listingFor(product.listing, myLang.split("-")[0])?.title ?? product.name) : null;
   const order = orders[0];
-  const busy = myState === "translating";
+
 
   const peerLabel =
     peerState === "listening" ? `${peerName}: ${t("listening")}` : peerState === "translating" ? `${peerName}: ${t("translating")}` : null;
@@ -347,6 +372,10 @@ export function ChatPanel({
 
       {/* Composer */}
       <div className="border-t border-sand bg-white px-3 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2">
+        <div className="mb-2">
+          <HandsFreeToggle on={handsFree} onChange={setHandsFree} label={t("handsFree")} hint={t("handsFreeHint")} compact />
+        </div>
+        {!handsFree && (
         <p
           className={`mb-1 h-5 text-center text-sm font-bold ${
             myState === "listening" ? "text-saffron" : myState === "idle" ? "text-muted" : "text-maroon"
@@ -361,7 +390,8 @@ export function ChatPanel({
                 ? t("speaking")
                 : t("tapToSpeak")}
         </p>
-        {voice.interim && <p className="mb-1 text-center text-xs italic text-muted">“{voice.interim}”</p>}
+        )}
+        {!handsFree && voice.interim && <p className="mb-1 text-center text-xs italic text-muted">“{voice.interim}”</p>}
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -371,14 +401,25 @@ export function ChatPanel({
           >
             <Keyboard className="size-6" />
           </button>
-          <MicButton
-            state={busy || voice.state === "processing" ? "busy" : voice.state === "recording" ? "recording" : "idle"}
-            level={voice.level}
-            progress={voice.elapsed / voice.maxMs}
-            onPress={voice.toggle}
-            size={compact ? "md" : "lg"}
-            label={voice.state === "recording" ? t("stop") : t("tapToSpeak")}
-          />
+          {handsFree ? (
+            <HandsFreeStatus
+              state={hf.state}
+              phase={hfPhase}
+              level={hf.level}
+              interim={hf.interim}
+              compact={compact}
+              labels={{ listening: t("listening"), sending: t("sending"), speaking: t("speaking") }}
+            />
+          ) : (
+            <MicButton
+              state={busy || voice.state === "processing" ? "busy" : voice.state === "recording" ? "recording" : "idle"}
+              level={voice.level}
+              progress={voice.elapsed / voice.maxMs}
+              onPress={voice.toggle}
+              size={compact ? "md" : "lg"}
+              label={voice.state === "recording" ? t("stop") : t("tapToSpeak")}
+            />
+          )}
           <div className="size-14" aria-hidden />
         </div>
         {showText && (

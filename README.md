@@ -50,6 +50,13 @@ Bol Bazaar removes both.
 
 - **🏪 Speak your shop online** (`/seller/shop-setup`): one mic, up to 60 seconds. *"I am Meena, I weave Kanchipuram silk for 20 years, my sarees start at 5000…"* turns into a storefront in Tamil, Hindi and English. The screen walks through **Listening → Understanding → Writing in 3 languages → Your shop is live!** and then reads back in her language: *"Your shop is live. Share it on WhatsApp?"* Only what she said is extracted; anything missing is highlighted in yellow so she can fill it by voice.
 
+- **👂 Hands-free mode**: available in chat, `/demo` and `/seller/new`. Turn it on and just talk, with no tapping.
+  - **Detecting speech:** Web Audio energy-based detection with an adaptive noise floor. About 1.2 s of silence ends an utterance, and it goes straight to `/api/relay`.
+  - **Not hearing itself:** listening pauses while the other side's audio plays, plus a 0.6 s echo tail.
+  - **Filtering noise:** sounds under 0.5 s and very quiet input are ignored. If someone is too quiet, it says *"Please come a little closer"* in their language.
+  - **States:** Listening… / Sending… / Speaking….
+  - **Without keys:** it uses continuous browser SpeechRecognition.
+  - **Default:** tap-to-talk remains the default.
 - **🎤 List by voice**: photo, speak, then a structured listing in 3 languages, with fields that weren't said **highlighted in yellow** (never invented).
 - **🔢 Exact numbers**: understands *lakh*, *hazaar*, *ஆயிரம்*, "8.5k" and digits in any script. A deterministic guard makes sure a price the seller actually said is **never altered** by the LLM.
 - **🗣️ Voice edits**: "change price to 8000", "add: available in red".

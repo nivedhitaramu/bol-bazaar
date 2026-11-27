@@ -6,6 +6,24 @@
 let el: HTMLAudioElement | null = null;
 let unlocked = false;
 let queue: Promise<void> = Promise.resolve();
+
+// ── Playback state (hands-free mode pauses listening while anything is playing) ──
+let active = 0;
+const playbackListeners = new Set<(playing: boolean) => void>();
+function setActive(delta: number) {
+  const was = active > 0;
+  active = Math.max(0, active + delta);
+  if (was !== active > 0) playbackListeners.forEach((l) => l(active > 0));
+}
+export function isPlaybackActive() {
+  return active > 0;
+}
+export function onPlaybackChange(fn: (playing: boolean) => void) {
+  playbackListeners.add(fn);
+  return () => {
+    playbackListeners.delete(fn);
+  };
+}
 const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
 
 function audioEl(): HTMLAudioElement {
@@ -37,10 +55,14 @@ export async function unlockAudio() {
   unlocked = true;
 }
 
+/** Settles the clip currently playing (a paused <audio> never fires "ended"). */
+let settleCurrent: (() => void) | null = null;
+
 export function stopAudio() {
   try {
     audioEl().pause();
   } catch {}
+  settleCurrent?.();
   try {
     window.speechSynthesis?.cancel();
   } catch {}
@@ -52,6 +74,11 @@ function playSrc(src: string): Promise<void> {
     const cleanup = () => {
       a.onended = null;
       a.onerror = null;
+      settleCurrent = null;
+    };
+    settleCurrent = () => {
+      cleanup();
+      resolve();
     };
     a.onended = () => {
       cleanup();
@@ -112,6 +139,7 @@ export type PlayInput = { url?: string | null; base64?: string | null; mime?: st
 /** Play server audio if present, else fall back to browser TTS. Queued so clips never overlap. */
 export function play(input: PlayInput, hooks?: { onStart?: () => void; onEnd?: (usedFallback: boolean) => void }) {
   const task = async () => {
+    setActive(+1);
     hooks?.onStart?.();
     let usedFallback = false;
     const src = input.url || (input.base64 ? `data:${input.mime || "audio/mpeg"};base64,${input.base64}` : null);
@@ -124,6 +152,7 @@ export function play(input: PlayInput, hooks?: { onStart?: () => void; onEnd?: (
         await speakWithBrowser(input.text, input.lang);
       }
     }
+    setActive(-1);
     hooks?.onEnd?.(usedFallback);
   };
   queue = queue.then(task, task);

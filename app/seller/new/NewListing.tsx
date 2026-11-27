@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import { useLang } from "@/components/LangProvider";
 import { useToast } from "@/components/Toast";
-import { VoiceCapture } from "@/components/VoiceCapture";
+import { useVoiceErrorHandler, VoiceCapture } from "@/components/VoiceCapture";
+import { HandsFreeStatus, HandsFreeToggle } from "@/components/HandsFree";
+import { useHandsFree } from "@/lib/client/useHandsFree";
 import { downscaleImage, postJson, postVoice, uploadFile } from "@/lib/client/api";
 import { play, stopAudio } from "@/lib/client/player";
 import type { LocalSeller } from "@/lib/client/useSeller";
@@ -212,6 +214,33 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
   const listingTabs = res ? Object.keys(res.listing) : [];
   const shown = res ? (res.listing[tab] ?? res.listing.en) : null;
 
+  // ─────────── Hands-free: first utterance creates the listing, later ones edit it ───────────
+  const onVoiceError = useVoiceErrorHandler();
+  const [handsFree, setHandsFree] = useState(false);
+  const hf = useHandsFree({
+    id: "new-listing",
+    enabled: handsFree && !published,
+    busy: busy !== null,
+    lang: sellerLang,
+    onUtterance: async (input) => {
+      try {
+        if (res && draft) await edit(input);
+        else await create(input);
+      } catch (e) {
+        onVoiceError(e);
+      }
+    },
+    onTooQuiet: () => {
+      toast(t("comeCloser"));
+      play({ text: t("comeCloser"), lang: sellerLang });
+    },
+    onStop: (reason) => {
+      setHandsFree(false);
+      if (reason === "mic") toast(t("errorMic"), "error");
+    },
+  });
+  const hfPhase: "sending" | "speaking" | null = busy ? "sending" : hf.playing || speaking ? "speaking" : null;
+
   // ─────────── Published ───────────
   if (published && res && draft) {
     const titleSeller = res.listing[sellerShort]?.title ?? res.listing.en?.title ?? draft.product_name ?? "";
@@ -269,6 +298,22 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
           <Sparkles className="size-6 text-saffron" /> {t("newProduct")}
         </h1>
         <SpeakLangPicker value={sellerLang} onChange={setSpeakLang} />
+      </div>
+
+      <div className="mb-4">
+        <HandsFreeToggle on={handsFree} onChange={setHandsFree} label={t("handsFree")} hint={t("handsFreeHint")} />
+        {handsFree && (
+          <div className="card mt-3 flex flex-col items-center gap-1 px-4 py-4 text-center">
+            <HandsFreeStatus
+              state={hf.state}
+              phase={hfPhase}
+              level={hf.level}
+              interim={hf.interim}
+              labels={{ listening: t("listening"), sending: t("sending"), speaking: t("speaking") }}
+            />
+            <p className="text-sm text-muted">{res ? t("editHint") : t("speakHint")}</p>
+          </div>
+        )}
       </div>
 
       {/* 1. Photo */}
