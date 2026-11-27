@@ -5,6 +5,8 @@ import { browserSttSupported, getVoiceMode, onVoiceModeChange, probeVoiceMode } 
 import { stopAudio } from "./player";
 
 export type VoiceResult = { audio?: Blob; text?: string };
+/** Level (RMS×4) a real utterance reaches at least once; below this the speaker is too far away. */
+const QUIET_PEAK = 0.1;
 export type RecState = "idle" | "recording" | "processing";
 
 type SR = {
@@ -33,6 +35,8 @@ export function useVoiceInput(opts: {
   onResult: (r: VoiceResult) => void | Promise<void>;
   onError?: (kind: "mic" | "unsupported" | "short") => void;
   onStart?: () => void;
+  /** The whole recording stayed too soft to be speech → "please come a little closer". */
+  onQuiet?: () => void;
 }) {
   const maxMs = opts.maxMs ?? 29_000;
   const [state, setState] = useState<RecState>("idle");
@@ -51,6 +55,7 @@ export function useVoiceInput(opts: {
   const tick = useRef<ReturnType<typeof setInterval> | null>(null);
   const fakeLevel = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAt = useRef(0);
+  const peak = useRef(0);
   const recog = useRef<SR | null>(null);
   const finalText = useRef("");
   const stateRef = useRef<RecState>("idle");
@@ -123,6 +128,12 @@ export function useVoiceInput(opts: {
     r.onstop = async () => {
       const dur = Date.now() - startedAt.current;
       cleanup();
+      // Never got loud enough to be speech (far away / whispering / covered mic).
+      if (dur >= 500 && peak.current < QUIET_PEAK && cb.current.onQuiet) {
+        set("idle");
+        cb.current.onQuiet();
+        return;
+      }
       if (dur < 500 || !chunks.length) {
         set("idle");
         cb.current.onError?.("short");
@@ -156,12 +167,15 @@ export function useVoiceInput(opts: {
           const v = (data[i] - 128) / 128;
           sum += v * v;
         }
-        setLevel(Math.min(1, Math.sqrt(sum / data.length) * 4));
+        const lvl = Math.min(1, Math.sqrt(sum / data.length) * 4);
+        if (lvl > peak.current) peak.current = lvl;
+        setLevel(lvl);
         raf.current = requestAnimationFrame(loop);
       };
       loop();
     } catch {}
 
+    peak.current = 0;
     r.start(250);
     set("recording");
     cb.current.onStart?.();

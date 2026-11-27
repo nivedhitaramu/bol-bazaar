@@ -11,6 +11,8 @@ type Handlers = {
   onStatus?: (s: StatusPayload) => void;
   onOrder?: (o: Order) => void;
   onConnection?: (live: boolean) => void;
+  /** A message was taken back ("illa, thappu"). */
+  onDelete?: (id: string) => void;
 };
 
 type Entry = {
@@ -19,6 +21,10 @@ type Entry = {
   live: boolean;
   poll: ReturnType<typeof setInterval> | null;
   seen: Set<string>;
+  /** id → translated_text|audio_url, to notice a retried translation in polling mode. */
+  sig: Map<string, string>;
+  /** ids in the last poll, to notice deletions in polling mode. */
+  lastIds: Set<string> | null;
   orderStamp: Map<string, string>;
   closed: boolean;
 };
@@ -56,11 +62,21 @@ async function pollOnce(conversationId: string, e: Entry) {
       orders?: Order[];
       presence?: Record<"buyer" | "seller", PeerState>;
     };
+    const ids = new Set<string>();
     for (const m of j.messages) {
-      if (e.seen.has(m.id)) continue;
-      e.seen.add(m.id);
-      e.handlers.forEach((h) => h.onMessage?.(m, "INSERT"));
+      ids.add(m.id);
+      const sig = `${m.translated_text ?? ""}|${m.audio_url ?? ""}`;
+      if (!e.seen.has(m.id)) {
+        e.seen.add(m.id);
+        e.sig.set(m.id, sig);
+        e.handlers.forEach((h) => h.onMessage?.(m, "INSERT"));
+      } else if (e.sig.has(m.id) && e.sig.get(m.id) !== sig) {
+        e.sig.set(m.id, sig);
+        e.handlers.forEach((h) => h.onMessage?.(m, "UPDATE")); // translation filled in later
+      } else e.sig.set(m.id, sig);
     }
+    if (e.lastIds) for (const id of e.lastIds) if (!ids.has(id)) e.handlers.forEach((h) => h.onDelete?.(id));
+    e.lastIds = ids;
     for (const o of j.orders ?? []) {
       const stamp = `${o.status}|${o.updated_at}`;
       if (e.orderStamp.get(o.id) === stamp) continue;
@@ -100,6 +116,12 @@ function connectRealtime(conversationId: string, entry: Entry) {
         entry.handlers.forEach((h) => h.onMessage?.(m, kind));
       }
     )
+    // DELETE events can't be filtered by column in Supabase Realtime — listen unfiltered; the
+    // payload only carries the id, and panels ignore ids they don't have.
+    .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages" }, (payload) => {
+      const id = (payload.old as { id?: string })?.id;
+      if (id) entry.handlers.forEach((h) => h.onDelete?.(id));
+    })
     .on("broadcast", { event: "status" }, ({ payload }) => {
       entry.handlers.forEach((h) => h.onStatus?.(payload as StatusPayload));
     })
@@ -136,6 +158,8 @@ export function subscribeConversation(conversationId: string, handlers: Handlers
       live: false,
       poll: null,
       seen: new Set(knownIds),
+      sig: new Map(),
+      lastIds: null,
       orderStamp: new Map(),
       closed: false,
     };

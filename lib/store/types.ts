@@ -54,6 +54,11 @@ export interface Store {
   findOrCreateConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string): Promise<string>;
   getMessages(conversationId: string): Promise<Message[]>;
   insertMessage(row: NewMessage): Promise<Message>;
+  getMessage(id: string): Promise<Message | null>;
+  /** Fill in a translation that failed earlier ("translation pending" → retried). */
+  updateMessage(id: string, patch: Partial<Pick<Message, "translated_text" | "audio_url">>): Promise<Message>;
+  /** "illa, thappu" — the sender takes back their last message. */
+  deleteMessage(id: string): Promise<void>;
 
   getConversationOrders(conversationId: string): Promise<Order[]>;
   insertOrder(row: Pick<Order, "product_id" | "conversation_id" | "buyer_name" | "quantity">): Promise<Order>;

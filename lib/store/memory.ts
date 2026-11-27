@@ -174,6 +174,23 @@ export class MemoryStore implements Store {
     return clone(m);
   }
 
+  async getMessage(id: string) {
+    const m = db().messages.find((x) => x.id === id);
+    return m ? clone(m) : null;
+  }
+
+  async updateMessage(id: string, patch: Partial<Pick<Message, "translated_text" | "audio_url">>) {
+    const m = db().messages.find((x) => x.id === id);
+    if (!m) throw new Error("Message not found");
+    Object.assign(m, patch);
+    return clone(m);
+  }
+
+  async deleteMessage(id: string) {
+    const d = db();
+    d.messages = d.messages.filter((x) => x.id !== id);
+  }
+
   async getConversationOrders(conversationId: string) {
     return clone(db().orders.filter((o) => o.conversation_id === conversationId).sort(byNewest));
   }

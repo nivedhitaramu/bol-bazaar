@@ -4,10 +4,13 @@ import Link from "next/link";
 import { ArrowLeftRight, Check, Keyboard, Loader2, Package, Play, Send, Truck, Wifi, WifiOff, Zap } from "lucide-react";
 import { MicButton } from "./MicButton";
 import { HandsFreeStatus, HandsFreeToggle } from "./HandsFree";
+import { RecoveryCard } from "./RecoveryCard";
+import { applyChoice, classifyYesNo, matchOption, recoveryText, type Clarify, type ConfirmValue } from "@/lib/recovery";
+import { answerText, consumeSimulateNoise, useFailures } from "@/lib/client/recoveryClient";
 import { useHandsFree } from "@/lib/client/useHandsFree";
 import { useToast } from "./Toast";
 import { useVoiceInput, type VoiceResult } from "@/lib/client/useVoiceInput";
-import { getJson, postVoice, SwitchedToBrowserStt } from "@/lib/client/api";
+import { ClientApiError, getJson, postVoice, SwitchedToBrowserStt } from "@/lib/client/api";
 import { play, speak } from "@/lib/client/player";
 import { type PeerState, subscribeConversation, subscribeOrders } from "@/lib/client/realtime";
 import { translator } from "@/lib/i18n";
@@ -22,6 +25,13 @@ type ConvData = {
 };
 
 type RelayResponse = {
+  action?: "sent" | "confirm" | "clarify" | "undo";
+  transcript?: string;
+  prompt?: string;
+  audio?: string | null;
+  mime?: string | null;
+  clarify?: Clarify;
+  values?: ConfirmValue[];
   message: Message;
   translatedOk: boolean;
   ttsOk: boolean;
@@ -56,6 +66,8 @@ export function ChatPanel({
 
   const sub = useRef<ReturnType<typeof subscribeConversation> | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<Message[]>([]);
+  messagesRef.current = messages;
   const peerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const soundRef = useRef(soundEnabled);
   soundRef.current = soundEnabled;
@@ -130,6 +142,7 @@ export function ChatPanel({
         },
         onOrder: upsertOrder,
         onConnection: setLive,
+        onDelete: (id) => setMessages((xs) => xs.filter((x) => x.id !== id)),
       },
       data.messages.map((m) => m.id)
     );
@@ -166,25 +179,130 @@ export function ChatPanel({
     [side, panelId]
   );
 
-  const send = async (input: VoiceResult) => {
+  // ── "When things go wrong": confirm numbers, clarify sound-alikes, undo, two strikes → text box ──
+  type Pending =
+    | { kind: "confirm"; transcript: string; prompt: string; clarified: boolean }
+    | { kind: "clarify"; transcript: string; prompt: string; clarify: Clarify };
+  const [pending, setPending] = useState<Pending | null>(null);
+  const pendingRef = useRef<Pending | null>(null);
+  pendingRef.current = pending;
+  const say = (text: string, audio?: { base64?: string | null; mime?: string | null }) =>
+    play({ base64: audio?.base64 ?? null, mime: audio?.mime ?? null, text, lang: myLangRef.current });
+  const failures = useFailures(() => {
+    setShowText(true);
+    toast(recoveryText("typeOffer", myLangRef.current));
+    say(recoveryText("typeOffer", myLangRef.current));
+  });
+
+  /** Take back my last message ("No, wrong" / "illa, thappu" / "nahi, galat"). */
+  const undoLast = async () => {
+    const mine = [...messagesRef.current].reverse().find((m) => m.sender === side);
+    if (!mine) return;
+    const res = await fetch(`/api/messages/${mine.id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId, sender: side }),
+    });
+    if (res.ok) {
+      setMessages((xs) => xs.filter((x) => x.id !== mine.id));
+      toast(recoveryText("undone", myLangRef.current), "success");
+      say(recoveryText("undone", myLangRef.current));
+    } else toast(t("errorGeneric"), "error");
+  };
+
+  const relay = async (input: VoiceResult, flags: { clarified?: boolean; confirmed?: boolean } = {}) => {
     status("translating");
     try {
-      const r = await postVoice<RelayResponse>("/api/relay", input, { conversationId, sender: side });
+      const r = await postVoice<RelayResponse>("/api/relay", input, {
+        conversationId,
+        sender: side,
+        checks: "1",
+        simulateNoise: !flags.clarified && !flags.confirmed && consumeSimulateNoise() ? "1" : undefined,
+        clarified: flags.clarified ? "1" : undefined,
+        confirmed: flags.confirmed ? "1" : undefined,
+      });
+      failures.reset();
+      if (r.action === "undo") return void (await undoLast());
+      if (r.action === "clarify" && r.clarify && r.transcript && r.prompt) {
+        setPending({ kind: "clarify", transcript: r.transcript, prompt: r.prompt, clarify: r.clarify });
+        return void say(r.prompt, { base64: r.audio, mime: r.mime });
+      }
+      if (r.action === "confirm" && r.transcript && r.prompt) {
+        setPending({ kind: "confirm", transcript: r.transcript, prompt: r.prompt, clarified: Boolean(flags.clarified) });
+        return void say(r.prompt, { base64: r.audio, mime: r.mime });
+      }
+      setPending(null);
       setMessages((xs) => (xs.some((x) => x.id === r.message.id) ? xs : [...xs, r.message]));
       setLatency((l) => ({ ...l, [r.message.id]: r.timings.total_ms }));
       if (!r.translatedOk || !r.ttsOk) toast(t("fallbackVoice"));
     } catch (e) {
       if (e instanceof SwitchedToBrowserStt) toast(`${t("fallbackStt")} — ${t("tapToSpeak")}`);
-      else toast(t("errorGeneric"), "error");
+      else if (e instanceof ClientApiError && e.code === "empty_transcript") {
+        toast(recoveryText("couldntHear", myLangRef.current));
+        say(recoveryText("couldntHear", myLangRef.current));
+      } else toast(t("errorGeneric"), "error");
+      failures.fail();
     } finally {
       status("idle");
     }
+  };
+
+  /** The answer to a pending question — spoken (any surface, incl. hands-free) or tapped. */
+  const answer = async (choice: "yes" | "no" | 0 | 1 | null) => {
+    const p = pendingRef.current;
+    if (!p) return;
+    if (choice === null) {
+      failures.fail();
+      return void say(p.kind === "confirm" ? recoveryText("notSure", myLangRef.current) : p.prompt);
+    }
+    if (p.kind === "confirm") {
+      if (choice === "yes") {
+        setPending(null);
+        return void relay({ text: p.transcript }, { confirmed: true, clarified: true });
+      }
+      setPending(null);
+      return void say(recoveryText("sayAgain", myLangRef.current)); // nothing was sent
+    }
+    if (choice === 0 || choice === 1) {
+      setPending(null);
+      const fixed = applyChoice(p.transcript, p.clarify.word, p.clarify.options[choice]);
+      return void relay({ text: fixed }, { clarified: true }); // numbers are still confirmed next
+    }
+    setPending(null);
+    say(recoveryText("sayAgain", myLangRef.current));
+  };
+
+  const answerByVoice = async (input: VoiceResult) => {
+    const p = pendingRef.current;
+    if (!p) return;
+    try {
+      const text = await answerText(input, myLangRef.current);
+      if (p.kind === "confirm") return void answer(classifyYesNo(text));
+      const yn = classifyYesNo(text);
+      if (yn === "no") return void answer("no");
+      return void answer(matchOption(text, p.clarify.options));
+    } catch {
+      failures.fail();
+      say(recoveryText("couldntHear", myLangRef.current));
+    }
+  };
+
+  /** Every utterance lands here: an answer to a pending question, or a new message. */
+  const send = async (input: VoiceResult) => {
+    if (pendingRef.current) return answerByVoice(input);
+    return relay(input);
   };
 
   const voice = useVoiceInput({
     lang: myLang,
     onStart: () => status("listening"),
     onResult: send,
+    onQuiet: () => {
+      status("idle");
+      toast(t("comeCloser"));
+      say(t("comeCloser"));
+      failures.fail();
+    },
     onError: (k) => {
       status("idle");
       if (k !== "short") {
@@ -209,6 +327,7 @@ export function ChatPanel({
     onTooQuiet: () => {
       toast(t("comeCloser"));
       speak(t("comeCloser"), myLang);
+      failures.fail();
     },
     onStop: (reason) => {
       setHandsFree(false);
@@ -372,6 +491,19 @@ export function ChatPanel({
 
       {/* Composer */}
       <div className="border-t border-sand bg-white px-3 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2">
+        {pending && (
+          <RecoveryCard
+            kind={pending.kind}
+            prompt={pending.prompt}
+            options={pending.kind === "clarify" ? pending.clarify.options : undefined}
+            lang={myLang}
+            busy={busy}
+            compact={compact}
+            labels={{ yes: t("yes"), no: t("no"), tapToSpeak: t("tapToSpeak"), listening: t("listening") }}
+            onVoice={answerByVoice}
+            onPick={(c) => answer(c)}
+          />
+        )}
         <div className="mb-2">
           <HandsFreeToggle on={handsFree} onChange={setHandsFree} label={t("handsFree")} hint={t("handsFreeHint")} compact />
         </div>

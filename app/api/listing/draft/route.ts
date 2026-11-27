@@ -3,6 +3,7 @@ import { z } from "zod";
 import { fail, ok, ttsSafe, voiceInput, ApiError } from "@/lib/api";
 import { applyEdit, DraftSchema, extractProduct, generateListing, missingFields, readbackText } from "@/lib/llm";
 import { normalizeLang } from "@/lib/languages";
+import { isUndo } from "@/lib/recovery";
 import { getSeller } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/env";
 import type { Listing, ProductDraft } from "@/lib/types";
@@ -40,12 +41,16 @@ export async function POST(req: NextRequest) {
 
     if (mode === "create") {
       transcript = (await voiceInput(form, lang)).transcript;
+      // "No, wrong" / "illa, thappu" / "nahi, galat" → the client restores the previous draft.
+      if (isUndo(transcript)) return ok({ undo: true, transcript });
       const r = await extractProduct(transcript, lang);
       draft = r.draft;
       sources.extract = r.source;
     } else if (mode === "edit") {
       if (!prevDraft) throw new ApiError(400, "no_draft", "Missing draft");
       transcript = (await voiceInput(form, lang)).transcript;
+      // "No, wrong" / "illa, thappu" / "nahi, galat" → the client restores the previous draft.
+      if (isUndo(transcript)) return ok({ undo: true, transcript });
       const r = await applyEdit(prevDraft, transcript, lang);
       draft = r.draft;
       change = r.change;

@@ -132,6 +132,18 @@ export class SupabaseStore implements Store {
     return check(await this.sb.from("messages").insert(row).select("*").single()) as Message;
   }
 
+  async getMessage(id: string) {
+    return check(await this.sb.from("messages").select("*").eq("id", id).maybeSingle()) as Message | null;
+  }
+
+  async updateMessage(id: string, patch: Partial<Pick<Message, "translated_text" | "audio_url">>) {
+    return check(await this.sb.from("messages").update(patch).eq("id", id).select("*").single()) as Message;
+  }
+
+  async deleteMessage(id: string) {
+    check(await this.sb.from("messages").delete().eq("id", id));
+  }
+
   async getConversationOrders(conversationId: string) {
     return (check(
       await this.sb.from("orders").select("*").eq("conversation_id", conversationId).order("created_at", { ascending: false })
