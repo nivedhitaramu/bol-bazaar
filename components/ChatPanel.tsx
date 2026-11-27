@@ -84,7 +84,7 @@ export function ChatPanel({
     (m: Message) => {
       if (!soundRef.current) return;
       play(
-        { url: m.audio_url, text: m.translated_text ?? m.original_text, lang: myLangRef.current },
+        heardAs(m, myLangRef.current),
         {
           onStart: () => {
             setPlayingId(m.id);
@@ -125,12 +125,13 @@ export function ChatPanel({
           if (peerTimer.current) clearTimeout(peerTimer.current);
           if (st.state !== "idle") peerTimer.current = setTimeout(() => setPeerState("idle"), 35_000);
         },
+        onOrder: upsertOrder,
         onConnection: setLive,
       },
       data.messages.map((m) => m.id)
     );
     sub.current = s;
-    const unsubOrders = subscribeOrders((o) => {
+    function upsertOrder(o: Order) {
       if (o.conversation_id !== conversationId) return;
       setOrders((xs) => {
         const i = xs.findIndex((x) => x.id === o.id);
@@ -139,7 +140,8 @@ export function ChatPanel({
         copy[i] = o;
         return copy;
       });
-    });
+    }
+    const unsubOrders = subscribeOrders(upsertOrder);
     return () => {
       s.unsubscribe();
       unsubOrders();
@@ -195,7 +197,7 @@ export function ChatPanel({
     if (mine) speak(m.original_text, myLang, { onEnd: () => setPlayingId(null) });
     else
       play(
-        { url: m.audio_url, text: m.translated_text ?? m.original_text, lang: myLang },
+        heardAs(m, myLang),
         { onEnd: () => setPlayingId(null) }
       );
   };
@@ -262,6 +264,7 @@ export function ChatPanel({
           const big = mine ? m.original_text : (m.translated_text ?? m.original_text);
           const small = mine ? m.translated_text : m.original_text;
           const smallLang = mine ? m.translated_language : m.original_language;
+          const untranslated = m.translated_text == null && m.original_language !== m.translated_language;
           const playing = playingId === m.id;
           return (
             <div key={m.id} className={`msg-in flex ${mine ? "justify-end" : "justify-start"}`}>
@@ -271,6 +274,13 @@ export function ChatPanel({
                 } ${playing ? "ring-4 ring-turmeric/70" : ""}`}
               >
                 <p className={`${compact ? "text-base" : "text-lg"} font-semibold leading-snug`}>{big}</p>
+                {untranslated && (
+                  <span
+                    className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${mine ? "bg-white/15 text-white/80" : "bg-turmeric-soft text-maroon"}`}
+                  >
+                    🔑 {t("translationKeyNotSet")}
+                  </span>
+                )}
                 {small && small !== big && (
                   <p className={`mt-1 text-sm leading-snug ${mine ? "text-white/65" : "text-muted"}`}>
                     <span className="mr-1 text-[10px] font-bold uppercase tracking-wide opacity-80">
@@ -407,4 +417,10 @@ function OrderTracker({ order, t }: { order: Order; t: ReturnType<typeof transla
       })}
     </div>
   );
+}
+
+/** What the listener hears: the translation (server audio or browser TTS), or — with no translation — the original. */
+function heardAs(m: Message, myLang: string) {
+  if (m.translated_text == null) return { url: null, text: m.original_text, lang: m.original_language };
+  return { url: m.audio_url, text: m.translated_text, lang: myLang };
 }

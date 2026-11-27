@@ -95,6 +95,9 @@ const en = {
   buyerLabel: "Buyer",
   chatWith: "Chat",
   translatedTo: "Translated",
+  translationKeyNotSet: "Translation key not set",
+  keyNotSet: "AI key not set — using basic offline mode",
+  demoBanner: "Demo mode — API keys not set. Add keys in .env.local for full AI voice.",
 } as const;
 
 export type I18nKey = keyof typeof en;
@@ -195,6 +198,9 @@ const hi: Dict = {
   buyerLabel: "ख़रीदार",
   chatWith: "बातचीत",
   translatedTo: "अनुवाद",
+  translationKeyNotSet: "अनुवाद की कुंजी सेट नहीं है",
+  keyNotSet: "AI कुंजी सेट नहीं है — बुनियादी ऑफ़लाइन मोड",
+  demoBanner: "डेमो मोड — API कुंजियाँ सेट नहीं हैं। पूरी AI आवाज़ के लिए .env.local में कुंजियाँ जोड़ें।",
 };
 
 const ta: Dict = {
@@ -292,6 +298,9 @@ const ta: Dict = {
   buyerLabel: "வாங்குபவர்",
   chatWith: "உரையாடல்",
   translatedTo: "மொழிபெயர்ப்பு",
+  translationKeyNotSet: "மொழிபெயர்ப்பு விசை அமைக்கப்படவில்லை",
+  keyNotSet: "AI விசை அமைக்கப்படவில்லை — அடிப்படை ஆஃப்லைன் முறை",
+  demoBanner: "டெமோ முறை — API விசைகள் அமைக்கப்படவில்லை. முழு AI குரலுக்கு .env.local-ல் விசைகளைச் சேர்க்கவும்.",
 };
 
 const dicts: Partial<Record<string, Dict>> = { en, hi, ta };

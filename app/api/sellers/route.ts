@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { ApiError, fail, ok, rid, uploadPublic } from "@/lib/api";
-import { getAdminSupabase } from "@/lib/supabase/server";
+import { getStore } from "@/lib/store";
 import { normalizeLang } from "@/lib/languages";
 import { sarvamAvailable, speechToText } from "@/lib/sarvam";
 
@@ -44,9 +44,7 @@ export async function POST(req: NextRequest) {
       if (stt?.transcript) voice_intro_transcript = stt.transcript;
     }
 
-    const { data, error } = await getAdminSupabase()
-      .from("sellers")
-      .insert({
+    const data = await getStore().insertSeller({
         name,
         language,
         gender,
@@ -54,11 +52,8 @@ export async function POST(req: NextRequest) {
         state: str("state"),
         craft: str("craft"),
         voice_intro_url,
-        voice_intro_transcript,
-      })
-      .select("*")
-      .single();
-    if (error) throw new ApiError(500, "db_error", error.message);
+      voice_intro_transcript,
+    });
     return ok(data);
   } catch (e) {
     return fail(e);

@@ -1,5 +1,5 @@
 import "server-only";
-import { getAdminSupabase } from "./supabase/server";
+import { getStore } from "./store";
 import { ApiError, translateSafe } from "./api";
 import { loadConversation, postMessage } from "./chat";
 import { INTENT_TO_STATUS, type OrderIntent, statusUpdateText } from "./llm";
@@ -27,17 +27,10 @@ export const STATUS_TO_INTENT: Record<OrderStatus, Exclude<OrderIntent, "unknown
   delivered: "delivered",
 };
 
-type OrderRow = Order & { product: { id: string; name: string; listing: Listing; seller_id: string } };
-
-export async function loadOrder(orderId: string): Promise<OrderRow> {
-  const { data, error } = await getAdminSupabase()
-    .from("orders")
-    .select("*, product:products(id, name, listing, seller_id)")
-    .eq("id", orderId)
-    .maybeSingle();
-  if (error) throw new ApiError(500, "db_error", error.message);
+export async function loadOrder(orderId: string) {
+  const data = await getStore().getOrder(orderId);
   if (!data) throw new ApiError(404, "not_found", "Order not found");
-  return data as OrderRow;
+  return data;
 }
 
 /** Update status and send the buyer a translated, spoken update in the chat. */
@@ -50,8 +43,7 @@ export async function setOrderStatus(
   const order = await loadOrder(orderId);
   if (order.product.seller_id !== sellerId) throw new ApiError(403, "forbidden", "Not your order");
 
-  const { data, error } = await getAdminSupabase().from("orders").update({ status }).eq("id", orderId).select("*").single();
-  if (error) throw new ApiError(500, "db_error", error.message);
+  const data = await getStore().updateOrderStatus(orderId, status);
 
   let message: Message | null = null;
   const it = intent ?? STATUS_TO_INTENT[status];
@@ -68,7 +60,7 @@ export async function setOrderStatus(
     }
     message = (await postMessage({ conv, sender: "seller", text: original, translated })).message;
   }
-  return { order: data as Order, message };
+  return { order: data, message };
 }
 
 export { INTENT_TO_STATUS };

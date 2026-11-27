@@ -1,0 +1,22 @@
+# docker compose up --build   →   http://localhost:3000
+#
+# Works with NO .env file: every variable below defaults to empty, which runs the app in
+# demo mode (in-memory data, browser speech, offline phrase dictionary).
+# For full AI voice + Supabase, put your keys in a `.env` file next to this one
+# (same variable names as .env.example) — Compose reads it automatically.
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+    image: bol-bazaar:latest
+    ports:
+      - "3000:3000"
+    environment:
+      SARVAM_API_KEY: ${SARVAM_API_KEY:-}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+    restart: unless-stopped

@@ -2,9 +2,8 @@ import { notFound } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { ProductCard } from "@/components/ProductCard";
-import { SetupNotice } from "@/components/SetupNotice";
 import { HearTheMaker } from "@/components/HearTheMaker";
-import { getSeller, isSupabaseConfigured, listPublished } from "@/lib/data";
+import { getSeller, listPublished } from "@/lib/data";
 import { translator } from "@/lib/i18n";
 import { langInfo, shortOf } from "@/lib/languages";
 import { getServerLang } from "@/lib/serverLang";
@@ -15,13 +14,6 @@ export default async function SellerShopPage({ params }: { params: Promise<{ sel
   const { sellerId } = await params;
   const lang = await getServerLang();
   const t = translator(lang);
-  if (!isSupabaseConfigured())
-    return (
-      <>
-        <AppHeader />
-        <SetupNotice />
-      </>
-    );
   if (!/^[0-9a-f-]{36}$/i.test(sellerId)) notFound();
 
   const [seller, products] = await Promise.all([getSeller(sellerId), listPublished({ sellerId })]);

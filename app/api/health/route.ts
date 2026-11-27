@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isSupabaseConfigured, sarvamKey, supabasePublishableKey } from "@/lib/env";
+import { isSupabaseConfigured, sarvamKey } from "@/lib/env";
 import { chatCompletion, speechToText, textToSpeech, translateText } from "@/lib/sarvam";
-import { getAdminSupabase } from "@/lib/supabase/server";
+import { getStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-type Check = { ok: boolean; ms: number; detail?: string };
+type Check = { ok: boolean; ms: number; detail?: string; fallback?: string };
 
 async function check(fn: () => Promise<string | void>): Promise<Check> {
   const t0 = Date.now();
@@ -17,6 +17,8 @@ async function check(fn: () => Promise<string | void>): Promise<Check> {
     return { ok: false, ms: Date.now() - t0, detail: (e as Error).message };
   }
 }
+
+const keyNotSet = (fallback: string): Check => ({ ok: true, ms: 0, detail: "SARVAM_API_KEY not set", fallback });
 
 /** 0.6 s of silence as a 16 kHz mono WAV — used to ping the STT endpoint. */
 function silentWav(): Blob {
@@ -32,44 +34,50 @@ function silentWav(): Blob {
 }
 
 /**
- * GET /api/health          → full check of every service (slow, ~3–6 s)
- * GET /api/health?quick=1  → configuration flags only (used by the client to pick STT mode)
+ * GET /api/health          → checks every service (a few seconds with keys; instant in demo mode)
+ * GET /api/health?quick=1  → configuration flags only (the client uses this to pick STT/realtime modes)
  */
 export async function GET(req: NextRequest) {
-  const quick = req.nextUrl.searchParams.has("quick");
+  const sarvam = Boolean(sarvamKey());
+  const supabase = isSupabaseConfigured();
   const config = {
-    sarvam: Boolean(sarvamKey()),
-    supabase: isSupabaseConfigured(),
-    supabaseRealtime: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && supabasePublishableKey()),
+    sarvam,
+    supabase,
+    store: supabase ? "supabase" : "memory",
+    demoMode: !sarvam || !supabase,
   };
-  if (quick) return NextResponse.json({ config });
+  if (req.nextUrl.searchParams.has("quick")) return NextResponse.json({ config });
 
-  const noKey = async () => {
-    throw new Error("SARVAM_API_KEY not set");
-  };
-  const [stt, translate, tts, llm, db, storage] = await Promise.all([
-    config.sarvam ? check(async () => `transcript="${(await speechToText(silentWav(), { language: "en-IN" })).transcript}"`) : check(noKey),
-    config.sarvam ? check(async () => await translateText("Hello, how much is this saree?", "en-IN", "ta-IN")) : check(noKey),
-    config.sarvam ? check(async () => `${(await textToSpeech("வணக்கம்", "ta-IN")).base64.length} b64 chars`) : check(noKey),
-    config.sarvam
+  const store = getStore();
+  const [stt, translate, tts, llm, data] = await Promise.all([
+    sarvam
+      ? check(async () => `transcript="${(await speechToText(silentWav(), { language: "en-IN" })).transcript}"`)
+      : Promise.resolve(keyNotSet("browser SpeechRecognition")),
+    sarvam
+      ? check(async () => await translateText("Hello, how much is this saree?", "en-IN", "ta-IN"))
+      : Promise.resolve(keyNotSet("built-in Tamil/Hindi/English phrase dictionary")),
+    sarvam
+      ? check(async () => `${(await textToSpeech("வணக்கம்", "ta-IN")).base64.length} b64 chars`)
+      : Promise.resolve(keyNotSet("browser speechSynthesis")),
+    sarvam
       ? check(async () => (await chatCompletion([{ role: "user", content: 'Reply with JSON {"ok": true}' }], { json: true, maxTokens: 30 })).slice(0, 80))
-      : check(noKey),
+      : Promise.resolve(keyNotSet("rule-based extraction (lib/llm.ts + lib/numbers.ts)")),
     check(async () => {
-      const { count, error } = await getAdminSupabase().from("products").select("id", { count: "exact", head: true });
-      if (error) throw new Error(error.message);
-      return `${count ?? 0} products`;
-    }),
-    check(async () => {
-      const { data, error } = await getAdminSupabase().storage.listBuckets();
-      if (error) throw new Error(error.message);
-      const names = data.map((b) => b.name);
-      const missing = ["product-photos", "voice-intros", "chat-audio"].filter((b) => !names.includes(b));
-      if (missing.length) throw new Error(`missing buckets: ${missing.join(", ")}`);
-      return names.join(", ");
+      const r = await store.check();
+      return `${r.db} · storage: ${r.storage}`;
     }),
   ]);
 
-  const all = { stt, translate, tts, llm, db, storage };
-  const healthy = Object.values(all).every((c) => c.ok);
-  return NextResponse.json({ healthy, config, services: all }, { status: healthy ? 200 : 207 });
+  const services = { stt, translate, tts, llm, data };
+  const healthy = Object.values(services).every((c) => c.ok);
+  return NextResponse.json(
+    {
+      healthy,
+      mode: config.demoMode ? "demo" : "full",
+      message: config.demoMode ? "Demo mode — API keys not set. Add keys in .env.local for full AI voice." : "All services configured.",
+      config,
+      services,
+    },
+    { status: 200 }
+  );
 }

@@ -22,7 +22,7 @@ export function ChatScreen({ conversationId, side }: { conversationId: string; s
   const router = useRouter();
   const { t } = useLang();
   return (
-    <div className="mx-auto flex h-dvh max-w-2xl flex-col" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    <div className="mx-auto flex h-[calc(100dvh-var(--banner-h,0px))] max-w-2xl flex-col" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <SoundGate enabled={sound} onEnable={() => setSound(true)} />
       <div className="flex items-center gap-2 border-b border-sand bg-cream px-2 py-1.5">
         <button

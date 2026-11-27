@@ -30,7 +30,7 @@ export function DemoSplit() {
   };
 
   return (
-    <div className="flex h-dvh flex-col bg-sand/40" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    <div className="flex h-[calc(100dvh-var(--banner-h,0px))] flex-col bg-sand/40" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <SoundGate enabled={sound} onEnable={() => setSound(true)} />
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-sand bg-cream px-4 py-2">
         <Logo small />

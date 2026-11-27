@@ -1,15 +1,15 @@
 import "server-only";
-import { getAdminSupabase } from "./supabase/server";
+import { getStore } from "./store";
 import { ApiError, rid, translateSafe, ttsSafe, uploadPublic } from "./api";
 import type { Conversation, Message, Seller } from "./types";
 
 export type ConvCtx = Conversation & { seller: Seller };
+export type { Message };
 
 export async function loadConversation(id: string): Promise<ConvCtx> {
-  const { data, error } = await getAdminSupabase().from("conversations").select("*, seller:sellers(*)").eq("id", id).maybeSingle();
-  if (error) throw new ApiError(500, "db_error", error.message);
+  const data = await getStore().getConversation(id);
   if (!data) throw new ApiError(404, "not_found", "Conversation not found");
-  return data as ConvCtx;
+  return data;
 }
 
 export function sideLanguages(conv: ConvCtx, sender: "buyer" | "seller") {
@@ -45,7 +45,7 @@ export async function postMessage(opts: {
 
   t0 = Date.now();
   const v = voiceFor(conv, sender);
-  const audio = await ttsSafe(tr.text, to, v.gender, v.role);
+  const audio = tr.ok ? await ttsSafe(tr.text, to, v.gender, v.role) : null;
   const tts_ms = Date.now() - t0;
 
   t0 = Date.now();
@@ -57,43 +57,22 @@ export async function postMessage(opts: {
       console.warn("chat audio upload failed:", (e as Error).message);
     }
   }
-  const { data, error } = await getAdminSupabase()
-    .from("messages")
-    .insert({
-      conversation_id: conv.id,
-      sender,
-      original_text: text,
-      original_language: from,
-      translated_text: tr.text,
-      translated_language: to,
-      audio_url,
-    })
-    .select("*")
-    .single();
-  if (error) throw new ApiError(500, "db_error", error.message);
+  const message = await getStore().insertMessage({
+    conversation_id: conv.id,
+    sender,
+    original_text: text,
+    original_language: from,
+    // null = no translation available (no key / no dictionary match) → UI shows original + "key not set" tag
+    translated_text: tr.ok ? tr.text : null,
+    translated_language: to,
+    audio_url,
+  });
   const store_ms = Date.now() - t0;
 
-  return { message: data as Message, timings: { translate_ms, tts_ms, store_ms }, translatedOk: tr.ok, ttsOk: Boolean(audio) };
+  return { message, timings: { translate_ms, tts_ms, store_ms }, translatedOk: tr.ok, ttsOk: Boolean(audio) };
 }
 
 /** Find-or-create a conversation for (product, buyer name, buyer language). */
-export async function ensureConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string) {
-  const sb = getAdminSupabase();
-  const { data: existing } = await sb
-    .from("conversations")
-    .select("id")
-    .eq("product_id", productId)
-    .eq("buyer_name", buyerName)
-    .eq("buyer_language", buyerLanguage)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (existing) return existing.id as string;
-  const { data, error } = await sb
-    .from("conversations")
-    .insert({ product_id: productId, seller_id: sellerId, buyer_name: buyerName, buyer_language: buyerLanguage })
-    .select("id")
-    .single();
-  if (error) throw new ApiError(500, "db_error", error.message);
-  return data.id as string;
+export function ensureConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string) {
+  return getStore().findOrCreateConversation(productId, sellerId, buyerName, buyerLanguage);
 }

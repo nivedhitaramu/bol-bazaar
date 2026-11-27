@@ -135,8 +135,10 @@ export async function speak(
   text: string,
   lang: string,
   opts: { from?: string; gender?: "female" | "male"; onStart?: () => void; onEnd?: (fallback: boolean) => void } = {}
-): Promise<{ text: string; fallback: boolean }> {
+): Promise<{ text: string; fallback: boolean; translated: boolean }> {
   let spoken = text;
+  let translated = true;
+  let speakLang = lang;
   let base64: string | null = null;
   let mime: string | null = null;
   try {
@@ -148,13 +150,18 @@ export async function speak(
     if (r.ok) {
       const j = await r.json();
       spoken = j.text || text;
+      if (opts.from && opts.from !== lang && j.translated === false) {
+        // Couldn't translate (no key, not in the offline dictionary): say the original in its own language.
+        translated = false;
+        speakLang = opts.from;
+      }
       base64 = j.audio;
       mime = j.mime;
     }
   } catch {}
   let fallback = !base64;
   await play(
-    { base64, mime, text: spoken, lang },
+    { base64, mime, text: spoken, lang: speakLang },
     {
       onStart: opts.onStart,
       onEnd: (f) => {
@@ -163,5 +170,5 @@ export async function speak(
       },
     }
   );
-  return { text: spoken, fallback };
+  return { text: spoken, fallback, translated };
 }

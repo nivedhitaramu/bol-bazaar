@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { ApiError, fail, ok } from "@/lib/api";
-import { getAdminSupabase } from "@/lib/supabase/server";
+import { getStore } from "@/lib/store";
 import { normalizeLang } from "@/lib/languages";
 import { ensureConversation } from "@/lib/chat";
 
@@ -16,9 +16,7 @@ export async function POST(req: NextRequest) {
   try {
     const b = Body.parse(await req.json());
     const lang = normalizeLang(b.buyerLanguage);
-    const sb = getAdminSupabase();
-    const { data: product, error: pe } = await sb.from("products").select("id, seller_id").eq("id", b.productId).maybeSingle();
-    if (pe) throw new ApiError(500, "db_error", pe.message);
+    const product = await getStore().getProduct(b.productId);
     if (!product) throw new ApiError(404, "not_found", "Product not found");
 
     const id = await ensureConversation(product.id, product.seller_id, b.buyerName, lang);

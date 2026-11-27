@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { ApiError, fail, ok } from "@/lib/api";
-import { getAdminSupabase } from "@/lib/supabase/server";
+import { getStore } from "@/lib/store";
 import { ensureConversation, loadConversation, postMessage } from "@/lib/chat";
 import { normalizeLang, shortOf } from "@/lib/languages";
 import { orderPlacedText } from "@/lib/orders";
@@ -19,22 +19,16 @@ export async function POST(req: NextRequest) {
   try {
     const b = Body.parse(await req.json());
     const buyerLang = normalizeLang(b.buyerLanguage);
-    const sb = getAdminSupabase();
-    const { data: product, error: pe } = await sb
-      .from("products")
-      .select("id, seller_id, name, listing, status")
-      .eq("id", b.productId)
-      .maybeSingle();
-    if (pe) throw new ApiError(500, "db_error", pe.message);
+    const product = await getStore().getProduct(b.productId);
     if (!product || product.status !== "published") throw new ApiError(404, "not_found", "Product not available");
 
     const conversationId = await ensureConversation(product.id, product.seller_id, b.buyerName, buyerLang);
-    const { data: order, error } = await sb
-      .from("orders")
-      .insert({ product_id: product.id, conversation_id: conversationId, buyer_name: b.buyerName, quantity: b.quantity })
-      .select("*")
-      .single();
-    if (error) throw new ApiError(500, "db_error", error.message);
+    const order = await getStore().insertOrder({
+      product_id: product.id,
+      conversation_id: conversationId,
+      buyer_name: b.buyerName,
+      quantity: b.quantity,
+    });
 
     // Notify the seller in their language (best-effort).
     try {

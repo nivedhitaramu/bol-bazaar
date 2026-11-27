@@ -4,14 +4,13 @@ import { notFound } from "next/navigation";
 import { MapPin, Package, Ruler, Sparkles } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { HearTheMaker } from "@/components/HearTheMaker";
-import { SetupNotice } from "@/components/SetupNotice";
 import { BuyerActions } from "./BuyerActions";
-import { getProduct, isSupabaseConfigured } from "@/lib/data";
+import { getProduct } from "@/lib/data";
 import { translator } from "@/lib/i18n";
 import { langInfo, shortOf } from "@/lib/languages";
 import { getServerLang } from "@/lib/serverLang";
 import { translateListing } from "@/lib/llm";
-import { getAdminSupabase } from "@/lib/supabase/server";
+import { getStore } from "@/lib/store";
 import { sarvamAvailable } from "@/lib/sarvam";
 import { formatINR, listingFor, type ListingText } from "@/lib/types";
 
@@ -24,7 +23,7 @@ const isUuid = (s: string) => /^[0-9a-f-]{36}$/i.test(s);
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  if (!isSupabaseConfigured() || !isUuid(id)) return {};
+  if (!isUuid(id)) return {};
   try {
     const p = await getProduct(id);
     if (!p) return {};
@@ -44,13 +43,6 @@ export default async function ProductPage({ params }: Props) {
   const t = translator(lang);
   const short = shortOf(lang);
 
-  if (!isSupabaseConfigured())
-    return (
-      <>
-        <AppHeader />
-        <SetupNotice />
-      </>
-    );
   if (!isUuid(id)) notFound();
   const p = await getProduct(id);
   if (!p) notFound();
@@ -62,10 +54,7 @@ export default async function ProductPage({ params }: Props) {
     try {
       l = await translateListing(p.listing.en, lang);
       machineTranslated = true;
-      await getAdminSupabase()
-        .from("products")
-        .update({ listing: { ...p.listing, [short]: l } })
-        .eq("id", p.id);
+      await getStore().setProductListing(p.id, { ...p.listing, [short]: l });
     } catch {
       l = null;
     }

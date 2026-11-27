@@ -110,7 +110,7 @@ export function NewListing({ seller }: { seller: LocalSeller }) {
     setDraft(r.draft);
     setDirty(false);
     if (r.sources.extract === "heuristic" || r.sources.listing === "heuristic" || r.sources.edit === "heuristic")
-      toast(t("fallbackVoice"));
+      toast(t("keyNotSet"));
     readBack(r);
   };
 

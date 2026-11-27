@@ -15,6 +15,7 @@ export function HearTheMaker({ seller }: { seller: Pick<Seller, "name" | "langua
   const { toast } = useToast();
   const [phase, setPhase] = useState<Phase>("idle");
   const [translated, setTranslated] = useState<string | null>(null);
+  const [noKey, setNoKey] = useState(false);
   const run = useRef(0);
 
   const transcript =
@@ -47,7 +48,10 @@ export function HearTheMaker({ seller }: { seller: Pick<Seller, "name" | "langua
         onStart: () => id === run.current && setPhase("translated"),
       });
       if (id !== run.current) return;
-      setTranslated(r.text);
+      // /api/speak echoes the original when it can't translate (no key and no dictionary match).
+      const untranslated = !r.translated;
+      setNoKey(untranslated);
+      setTranslated(untranslated ? null : r.text);
       fallback = fallback || r.fallback;
     }
     if (fallback) toast(t("fallbackVoice"));
@@ -98,6 +102,7 @@ export function HearTheMaker({ seller }: { seller: Pick<Seller, "name" | "langua
         <div className="space-y-2 border-t border-white/15 bg-black/10 px-4 py-3 text-sm">
           <p className={phase === "original" ? "text-white" : "text-white/60"}>“{transcript}”</p>
           {translated && !same && <p className="text-base font-semibold text-turmeric">“{translated}”</p>}
+          {noKey && !same && <p className="text-xs font-bold text-turmeric/90">🔑 {t("translationKeyNotSet")}</p>}
         </div>
       )}
     </div>

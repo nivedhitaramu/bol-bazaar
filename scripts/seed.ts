@@ -15,8 +15,10 @@ async function main() {
   const url = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    console.error("✗ Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY) in .env.local");
-    process.exit(1);
+    console.log("ℹ Supabase keys not set — nothing to seed.");
+    console.log("  Demo mode uses a built-in in-memory store that is seeded automatically when the app starts.");
+    console.log("  To use Supabase, set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local.");
+    return;
   }
   const sb = createClient(url, key, { auth: { persistSession: false } });
 

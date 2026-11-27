@@ -1,29 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import {
-  Baloo_2,
-  Noto_Sans,
-  Noto_Sans_Bengali,
-  Noto_Sans_Devanagari,
-  Noto_Sans_Gujarati,
-  Noto_Sans_Kannada,
-  Noto_Sans_Malayalam,
-  Noto_Sans_Tamil,
-  Noto_Sans_Telugu,
-} from "next/font/google";
 import "./globals.css";
 import { LangProvider } from "@/components/LangProvider";
 import { ToastProvider } from "@/components/Toast";
+import { DemoBanner } from "@/components/DemoBanner";
 import { getServerLang } from "@/lib/serverLang";
-
-const noto = Noto_Sans({ subsets: ["latin"], variable: "--font-noto", display: "swap" });
-const baloo = Baloo_2({ subsets: ["latin"], weight: ["600", "700", "800"], variable: "--font-baloo", display: "swap" });
-const ta = Noto_Sans_Tamil({ variable: "--font-ta", display: "swap", preload: false });
-const deva = Noto_Sans_Devanagari({ variable: "--font-deva", display: "swap", preload: false });
-const te = Noto_Sans_Telugu({ variable: "--font-te", display: "swap", preload: false });
-const kn = Noto_Sans_Kannada({ variable: "--font-kn", display: "swap", preload: false });
-const ml = Noto_Sans_Malayalam({ variable: "--font-ml", display: "swap", preload: false });
-const bn = Noto_Sans_Bengali({ variable: "--font-bn", display: "swap", preload: false });
-const gu = Noto_Sans_Gujarati({ variable: "--font-gu", display: "swap", preload: false });
+import { isSupabaseConfigured, sarvamKey } from "@/lib/env";
+import { translator } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "Bol Bazaar — Sell anywhere in India, just by speaking",
@@ -39,12 +21,25 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// Fonts load at runtime from Google Fonts (no build-time download → Docker builds work offline-ish);
+// if unreachable, the CSS stack falls back to system fonts.
+const FONTS_URL =
+  "https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Noto+Sans:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&display=swap";
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const lang = await getServerLang();
-  const fontVars = [noto, baloo, ta, deva, te, kn, ml, bn, gu].map((f) => f.variable).join(" ");
+  // Evaluated per request at runtime — never at build time.
+  const demoMode = !sarvamKey() || !isSupabaseConfigured();
+  const t = translator(lang);
   return (
-    <html lang={lang.split("-")[0]} className={fontVars}>
+    <html lang={lang.split("-")[0]} style={{ ["--banner-h" as string]: demoMode ? "30px" : "0px" }}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link rel="stylesheet" href={FONTS_URL} />
+      </head>
       <body className="min-h-dvh antialiased">
+        {demoMode && <DemoBanner text={t("demoBanner")} />}
         <LangProvider initial={lang}>
           <ToastProvider>{children}</ToastProvider>
         </LangProvider>

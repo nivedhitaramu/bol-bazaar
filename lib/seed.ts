@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Listing } from "./types";
+import type { Conversation, Listing, Message, Order, Product, Seller } from "./types";
 
 import { DEMO } from "./demoIds";
 export { DEMO };
 
-const SELLERS = [
+export const SELLERS = [
   {
     id: DEMO.meenaId,
     name: "Meena",
@@ -31,7 +31,7 @@ const SELLERS = [
 
 const L = (title: string, description: string, tags: string[]) => ({ title, description, tags });
 
-const PRODUCTS: Array<{
+export const PRODUCTS: Array<{
   id: string;
   seller_id: string;
   name: string;
@@ -152,7 +152,7 @@ const PRODUCTS: Array<{
   },
 ];
 
-const MESSAGES: Array<{ sender: "buyer" | "seller"; hi: string; ta: string }> = [
+export const MESSAGES: Array<{ sender: "buyer" | "seller"; hi: string; ta: string }> = [
   {
     sender: "buyer",
     hi: "नमस्ते! क्या यह साड़ी असली कांचीपुरम रेशम की है?",
@@ -189,6 +189,50 @@ export type SeedTts = (text: string, lang: string, gender: "female" | "male") =>
 
 export type SeedResult = { sellers: number; products: number; messages: number; introAudio: number };
 
+/** Plain rows for every demo table — shared by the Supabase seed and the in-memory store. */
+export function buildSeedRows(base = Date.now() - 1000 * 60 * 60 * 3) {
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const sellers: Seller[] = SELLERS.map((s) => ({ ...s, voice_intro_url: null, created_at: iso(base - 86_400_000) }));
+  const products: Product[] = PRODUCTS.map((p, i) => ({
+    ...p,
+    status: "published",
+    created_at: iso(base - (PRODUCTS.length - i) * 60_000),
+  }));
+  const conversation: Conversation = {
+    id: DEMO.conversationId,
+    product_id: DEMO.sareeId,
+    seller_id: DEMO.meenaId,
+    buyer_name: DEMO.buyerName,
+    buyer_language: DEMO.buyerLanguage,
+    created_at: iso(base),
+  };
+  const messages: Message[] = MESSAGES.map((m, i) => {
+    const fromBuyer = m.sender === "buyer";
+    return {
+      id: `eeeeeeee-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+      conversation_id: DEMO.conversationId,
+      sender: m.sender,
+      original_text: fromBuyer ? m.hi : m.ta,
+      original_language: fromBuyer ? "hi-IN" : "ta-IN",
+      translated_text: fromBuyer ? m.ta : m.hi,
+      translated_language: fromBuyer ? "ta-IN" : "hi-IN",
+      audio_url: null,
+      created_at: iso(base + (i + 1) * 60_000),
+    };
+  });
+  const order: Order = {
+    id: DEMO.orderId,
+    product_id: DEMO.sareeId,
+    conversation_id: DEMO.conversationId,
+    buyer_name: DEMO.buyerName,
+    quantity: 1,
+    status: "placed",
+    created_at: iso(base + 5 * 60_000),
+    updated_at: iso(base + 5 * 60_000),
+  };
+  return { sellers, products, conversation, messages, order };
+}
+
 async function must<T>(p: PromiseLike<{ data: T; error: { message: string } | null }>, what: string) {
   const { data, error } = await p;
   if (error) throw new Error(`${what}: ${error.message}`);
@@ -196,95 +240,44 @@ async function must<T>(p: PromiseLike<{ data: T; error: { message: string } | nu
 }
 
 /**
- * Deletes the demo sellers (cascades to products, conversations, messages, orders)
+ * Supabase: deletes the demo sellers (cascades to products, conversations, messages, orders)
  * and recreates everything. Idempotent.
  */
 export async function seedDemo(sb: SupabaseClient, opts: { tts?: SeedTts; log?: (s: string) => void } = {}): Promise<SeedResult> {
   const log = opts.log ?? (() => {});
+  const rows = buildSeedRows();
 
   await must(sb.from("sellers").delete().in("id", [DEMO.meenaId, DEMO.rameshId]), "delete sellers");
   log("Cleared old demo data");
 
-  // Voice intros (optional — only if TTS is available)
   let introAudio = 0;
-  const sellerRows = [];
-  for (const s of SELLERS) {
-    let voice_intro_url: string | null = null;
-    if (opts.tts) {
-      try {
-        const audio = await opts.tts(s.voice_intro_transcript, s.language, s.gender);
-        if (audio) {
-          const path = `seed/${s.id}.mp3`;
-          const { error } = await sb.storage
-            .from("voice-intros")
-            .upload(path, audio, { contentType: "audio/mpeg", upsert: true });
-          if (!error) {
-            voice_intro_url = sb.storage.from("voice-intros").getPublicUrl(path).data.publicUrl;
-            introAudio++;
-          } else log(`Intro upload failed for ${s.name}: ${error.message}`);
-        }
-      } catch (e) {
-        log(`Intro TTS failed for ${s.name}: ${(e as Error).message}`);
+  for (const s of rows.sellers) {
+    if (!opts.tts || !s.voice_intro_transcript) continue;
+    try {
+      const audio = await opts.tts(s.voice_intro_transcript, s.language, s.gender);
+      if (!audio) continue;
+      const path = `seed/${s.id}.mp3`;
+      const { error } = await sb.storage.from("voice-intros").upload(path, audio, { contentType: "audio/mpeg", upsert: true });
+      if (error) {
+        log(`Intro upload failed for ${s.name}: ${error.message}`);
+        continue;
       }
+      s.voice_intro_url = sb.storage.from("voice-intros").getPublicUrl(path).data.publicUrl;
+      introAudio++;
+    } catch (e) {
+      log(`Intro TTS failed for ${s.name}: ${(e as Error).message}`);
     }
-    sellerRows.push({ ...s, voice_intro_url });
   }
 
-  await must(sb.from("sellers").insert(sellerRows), "insert sellers");
-  log(`Inserted ${sellerRows.length} sellers (${introAudio} with generated voice intros)`);
-
-  await must(
-    sb.from("products").insert(PRODUCTS.map((p) => ({ ...p, status: "published" }))),
-    "insert products"
-  );
-  log(`Inserted ${PRODUCTS.length} products`);
-
-  const base = Date.now() - 1000 * 60 * 60 * 3;
-  await must(
-    sb.from("conversations").insert({
-      id: DEMO.conversationId,
-      product_id: DEMO.sareeId,
-      seller_id: DEMO.meenaId,
-      buyer_name: DEMO.buyerName,
-      buyer_language: DEMO.buyerLanguage,
-      created_at: new Date(base).toISOString(),
-    }),
-    "insert conversation"
-  );
-
-  await must(
-    sb.from("messages").insert(
-      MESSAGES.map((m, i) => {
-        const fromBuyer = m.sender === "buyer";
-        return {
-          conversation_id: DEMO.conversationId,
-          sender: m.sender,
-          original_text: fromBuyer ? m.hi : m.ta,
-          original_language: fromBuyer ? "hi-IN" : "ta-IN",
-          translated_text: fromBuyer ? m.ta : m.hi,
-          translated_language: fromBuyer ? "ta-IN" : "hi-IN",
-          audio_url: null,
-          created_at: new Date(base + (i + 1) * 60_000).toISOString(),
-        };
-      })
-    ),
-    "insert messages"
-  );
-  log(`Inserted ${MESSAGES.length} messages`);
-
-  await must(
-    sb.from("orders").insert({
-      id: DEMO.orderId,
-      product_id: DEMO.sareeId,
-      conversation_id: DEMO.conversationId,
-      buyer_name: DEMO.buyerName,
-      quantity: 1,
-      status: "placed",
-      created_at: new Date(base + 5 * 60_000).toISOString(),
-    }),
-    "insert order"
-  );
+  await must(sb.from("sellers").insert(rows.sellers), "insert sellers");
+  log(`Inserted ${rows.sellers.length} sellers (${introAudio} with generated voice intros)`);
+  await must(sb.from("products").insert(rows.products), "insert products");
+  log(`Inserted ${rows.products.length} products`);
+  await must(sb.from("conversations").insert(rows.conversation), "insert conversation");
+  await must(sb.from("messages").insert(rows.messages.map((m) => ({ ...m, id: undefined }))), "insert messages");
+  log(`Inserted ${rows.messages.length} messages`);
+  await must(sb.from("orders").insert(rows.order), "insert order");
   log("Inserted 1 order (status: placed)");
 
-  return { sellers: SELLERS.length, products: PRODUCTS.length, messages: MESSAGES.length, introAudio };
+  return { sellers: rows.sellers.length, products: rows.products.length, messages: rows.messages.length, introAudio };
 }

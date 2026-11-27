@@ -13,10 +13,10 @@
   --color-leaf: #2f6b4f;
   --color-peacock: #1f5f6b;
 
-  --font-sans: var(--font-noto), var(--font-ta), var(--font-deva), var(--font-te), var(--font-kn),
-    var(--font-ml), var(--font-bn), var(--font-gu), system-ui, sans-serif;
-  --font-display: var(--font-baloo), var(--font-ta), var(--font-deva), var(--font-noto), system-ui,
-    sans-serif;
+  --font-sans: "Noto Sans", "Noto Sans Tamil", "Noto Sans Devanagari", "Noto Sans Telugu", "Noto Sans Kannada",
+    "Noto Sans Malayalam", "Noto Sans Bengali", "Noto Sans Gujarati", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Nirmala UI", sans-serif;
+  --font-display: "Baloo 2", "Noto Sans Tamil", "Noto Sans Devanagari", "Noto Sans", system-ui, "Nirmala UI", sans-serif;
 
   --animate-pulse-ring: pulse-ring 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
   --animate-float: float 4s ease-in-out infinite;

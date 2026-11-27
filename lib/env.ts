@@ -1,38 +1,46 @@
 /**
- * Central env access. Supports both the new Supabase key names
- * (sb_publishable_... / sb_secret_...) and the legacy anon / service_role names.
+ * Central env access — safe at import time (never throws) and read at RUNTIME.
+ *
+ * Server code reads variables via a dynamic key (`readEnv("NEXT_PUBLIC_…")`) on purpose:
+ * Next.js inlines literal `process.env.NEXT_PUBLIC_*` at BUILD time, which would freeze an
+ * empty value into a keyless Docker image. Dynamic access lets keys added at `docker run`
+ * time still work on the server.
+ *
+ * Supports both the new Supabase key names (sb_publishable_… / sb_secret_…) and the legacy
+ * anon / service_role names.
  */
+export function readEnv(name: string): string | undefined {
+  if (typeof process === "undefined" || !process.env) return undefined;
+  const v = process.env[name];
+  return typeof v === "string" && v.trim() ? v.trim() : undefined;
+}
+
 /** Project URL only — strips accidental paths like "/rest/v1/" copied from the dashboard. */
 export function normalizeSupabaseUrl(raw: string | undefined): string | undefined {
   if (!raw?.trim()) return undefined;
   try {
     return new URL(raw.trim()).origin;
   } catch {
-    return raw.trim().replace(/\/+$/, "");
+    return undefined; // not a URL → treat as unset rather than crash
   }
 }
 
 export function supabaseUrl(): string | undefined {
-  return normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  return normalizeSupabaseUrl(readEnv("NEXT_PUBLIC_SUPABASE_URL"));
 }
 
 export function supabasePublishableKey(): string | undefined {
-  return (
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    undefined
-  );
+  return readEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") || readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 }
 
 /** Server-only. Never import from client components. */
 export function supabaseSecretKey(): string | undefined {
-  return process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || undefined;
+  return readEnv("SUPABASE_SECRET_KEY") || readEnv("SUPABASE_SERVICE_ROLE_KEY");
 }
 
 /** Server-only. */
 export function sarvamKey(): string | undefined {
-  const k = process.env.SARVAM_API_KEY?.trim();
-  return k ? k : undefined;
+  return readEnv("SARVAM_API_KEY");
 }
 
 export function isSupabaseConfigured(): boolean {
@@ -40,8 +48,10 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function siteUrl(reqOrigin?: string): string {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
+  const explicit = readEnv("NEXT_PUBLIC_SITE_URL");
+  if (explicit) return explicit.replace(/\/$/, "");
   if (reqOrigin) return reqOrigin;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  const vercel = readEnv("VERCEL_URL");
+  if (vercel) return `https://${vercel}`;
   return "http://localhost:3000";
 }

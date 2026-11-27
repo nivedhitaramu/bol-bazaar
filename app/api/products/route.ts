@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { ApiError, fail, ok } from "@/lib/api";
 import { DraftSchema } from "@/lib/llm";
-import { getAdminSupabase } from "@/lib/supabase/server";
+import { getStore } from "@/lib/store";
 
 const Body = z.object({
   sellerId: z.string().uuid(),
@@ -32,14 +32,9 @@ export async function POST(req: NextRequest) {
       photo_url: b.photoUrl ?? null,
       listing: b.listing,
       status: b.status,
-    };
-    const sb = getAdminSupabase();
-    const q = b.productId
-      ? sb.from("products").update(row).eq("id", b.productId).eq("seller_id", b.sellerId).select("id").single()
-      : sb.from("products").insert(row).select("id").single();
-    const { data, error } = await q;
-    if (error) throw new ApiError(500, "db_error", error.message);
-    return ok({ id: data.id as string });
+    } as const;
+    const id = await getStore().saveProduct(row, b.productId);
+    return ok({ id });
   } catch (e) {
     return fail(e);
   }

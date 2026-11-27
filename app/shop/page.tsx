@@ -3,7 +3,7 @@ import { MapPin, SlidersHorizontal } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { ProductCard } from "@/components/ProductCard";
 import { SetupNotice } from "@/components/SetupNotice";
-import { isSupabaseConfigured, listFacets, listPublished } from "@/lib/data";
+import { listFacets, listPublished } from "@/lib/data";
 import { translator } from "@/lib/i18n";
 import { shortOf } from "@/lib/languages";
 import { getServerLang } from "@/lib/serverLang";
@@ -14,14 +14,6 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const lang = await getServerLang();
   const t = translator(lang);
-
-  if (!isSupabaseConfigured())
-    return (
-      <>
-        <AppHeader />
-        <SetupNotice />
-      </>
-    );
 
   let products, facets;
   try {

@@ -1,6 +1,8 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { ConfigError, getAdminSupabase } from "./supabase/server";
+import { ConfigError } from "./supabase/server";
+import { getStore } from "./store";
+import { translateOffline } from "./dictionary";
 import { SarvamError, sarvamAvailable, speechToText, textToSpeech, translateText, type TranslateMode } from "./sarvam";
 
 export class ApiError extends Error {
@@ -54,13 +56,16 @@ export async function translateSafe(
   mode: TranslateMode = "formal"
 ): Promise<{ text: string; ok: boolean }> {
   if (!text.trim() || source === target) return { text, ok: true };
-  if (!sarvamAvailable()) return { text, ok: false };
-  try {
-    return { text: await translateText(text, source, target, mode), ok: true };
-  } catch (e) {
-    console.warn("translate failed:", (e as Error).message);
-    return { text, ok: false };
+  if (sarvamAvailable()) {
+    try {
+      return { text: await translateText(text, source, target, mode), ok: true };
+    } catch (e) {
+      console.warn("translate failed, trying offline dictionary:", (e as Error).message);
+    }
   }
+  // No key (or Sarvam down): built-in phrase dictionary covering the demo conversation.
+  const offline = translateOffline(text, source, target);
+  return offline != null ? { text: offline, ok: true } : { text, ok: false };
 }
 
 export async function ttsSafe(
@@ -79,10 +84,11 @@ export async function ttsSafe(
 }
 
 export async function uploadPublic(bucket: string, path: string, data: Blob | Buffer, contentType: string) {
-  const sb = getAdminSupabase();
-  const { error } = await sb.storage.from(bucket).upload(path, data, { contentType, upsert: true });
-  if (error) throw new ApiError(500, "upload_failed", `Upload failed: ${error.message}`);
-  return sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  try {
+    return await getStore().upload(bucket, path, data, contentType);
+  } catch (e) {
+    throw new ApiError(500, "upload_failed", (e as Error).message);
+  }
 }
 
 export function rid() {

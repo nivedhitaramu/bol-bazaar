@@ -7,7 +7,7 @@ import { useToast } from "@/components/Toast";
 import { OrderVoiceCommand } from "@/components/OrderVoiceCommand";
 import { getJson, postJson } from "@/lib/client/api";
 import type { LocalSeller } from "@/lib/client/useSeller";
-import { subscribeAllMessages, subscribeOrders } from "@/lib/client/realtime";
+import { realtimeAvailable, subscribeAllMessages, subscribeOrders } from "@/lib/client/realtime";
 import { lastSeen } from "@/lib/client/unread";
 import { langInfo, normalizeLang, shortOf } from "@/lib/languages";
 import { formatINR, listingFor, type OrderStatus } from "@/lib/types";
@@ -47,6 +47,19 @@ export function Dashboard({ seller, onSignOut }: { seller: LocalSeller; onSignOu
     const onFocus = () => force((x) => x + 1); // re-read unread markers
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
+  }, [load]);
+
+  // No Realtime (keyless demo mode): refresh by polling the local API.
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
+    realtimeAvailable().then((rt) => {
+      if (!rt && !cancelled) timer = setInterval(load, 4000);
+    });
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
   }, [load]);
 
   // Realtime: new buyer messages + order changes

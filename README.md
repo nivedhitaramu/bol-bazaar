@@ -2,6 +2,26 @@
 
 **Sell anywhere in India, just by speaking.**
 
+## ⚡ Quick start
+
+```bash
+git clone https://github.com/nivedhitaramu/bol-bazaar && cd bol-bazaar && docker compose up --build
+```
+
+→ open **http://localhost:3000**. Works with **no API keys** (demo mode). Optional: copy `.env.example` to `.env.local` for full AI.
+
+**Without Docker** (Node 20+):
+
+```bash
+npm install && npm run dev
+```
+
+> **Demo mode (no keys):** the app runs on a built-in, pre-seeded in-memory store (Meena, Ramesh, 4 products, a Hindi⇄Tamil conversation and an order). Speech uses the browser's own speech recognition and voices. Translation uses a built-in Tamil⇄Hindi⇄English phrase dictionary that covers the demo conversation; other phrases show the original text tagged *"Translation key not set"*. Listing extraction and voice order commands use rule-based parsing. Chat between two browser tabs works via polling. A thin banner says demo mode is on, and **`/api/health`** shows exactly which fallback each service is using.
+>
+> **Full mode:** add the keys from `.env.example`. For `npm run dev`, put them in `.env.local`. For Docker Compose, put them in a file named **`.env`**, which Compose reads automatically, then re-run `docker compose up --build`. Speech recognition and voices for 9 Indian languages, translation and the LLM then come from Sarvam AI, with Supabase for data, storage and realtime.
+>
+> 🎙️ Browsers only allow the microphone on **https** or **localhost**, so use `http://localhost:3000` (not your LAN IP). Voice input is best in Chrome or Edge.
+
 Bol Bazaar is a voice-first marketplace for India's small sellers (artisans, home cooks, weavers, potters). A seller lists a product by *talking* about it in their own language. A buyer in another state can then talk to the seller live, and each side hears the other **in their own language**.
 
 > 🏆 Built for **India Runs on Voice** (Scaler × Wispr), **Small Business track**.
@@ -136,7 +156,7 @@ cp .env.example .env.local     # Windows PowerShell: Copy-Item .env.example .env
 In the Supabase dashboard, open **SQL Editor**, paste the contents of [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), and click **Run**.
 (Or use `supabase db push` with the Supabase CLI.) This creates the tables, RLS policies, the Realtime publication for `messages` and `orders`, and the public Storage buckets.
 
-### 4. Seed and run
+### 4. Seed and run (Supabase mode)
 
 ```bash
 npm run seed      # Meena (Tamil, Kanchipuram) + Ramesh (Hindi, Khurja), 4 products, 1 conversation, 1 order
@@ -146,6 +166,14 @@ npm run dev       # http://localhost:3000
 Check **http://localhost:3000/api/health**: it pings STT, Translate, TTS, the LLM, the DB and Storage, and reports timings.
 
 > 🎙️ Microphone access needs **HTTPS or localhost**. To test on a phone, deploy to Vercel (or use an HTTPS tunnel).
+
+## 🐳 Docker
+
+`docker compose up --build` builds a multi-stage `node:22-alpine` image (Next.js `output: "standalone"`) and serves it on port 3000.
+
+- **Build time:** no environment variables are needed.
+- **Runtime:** the server reads keys when it starts, so you can add them later through `.env` without changing anything else.
+- **Secrets stay out of the image:** `.dockerignore` excludes `.env*`, `node_modules`, `.next` and `.git`.
 
 ## ☁️ Deploy to Vercel
 
@@ -163,7 +191,9 @@ All API keys stay server-side in Route Handlers. Only the Supabase URL and the p
 | Sarvam TTS fails | Browser **speechSynthesis** speaks the text |
 | Translation fails | The original text is delivered, with a toast |
 | The LLM fails | Rule-based extraction (price, quantity, Indian number words), edits ("change price to …") and order intents in en/hi/ta |
-| Realtime can't connect | The chat polls every 2.5 s automatically (badge shows `SYNC` instead of `LIVE`) |
+| Realtime can't connect, or Supabase isn't configured | The chat polls a local API every 1.5 s, including live "Listening…" status and order updates (badge shows `SYNC` instead of `LIVE`) |
+| Supabase keys missing | A seeded **in-memory store** behind the same `Store` interface (`lib/store/`) serves everything, uploads included |
+| Sarvam keys missing | Built-in Tamil ⇄ Hindi ⇄ English phrase dictionary (`lib/dictionary.ts`) for the demo conversation; anything else shows the original text tagged "Translation key not set" |
 | The browser blocks autoplay | A one-time **"Tap to enable sound"** gate unlocks audio |
 
 ## 🔒 Security notes (hackathon scope)
