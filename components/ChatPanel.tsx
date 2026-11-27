@@ -1,12 +1,12 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeftRight, Check, Keyboard, Loader2, Package, Play, Send, Truck, Wifi, WifiOff, Zap } from "lucide-react";
+import { ArrowLeftRight, Check, Hourglass, Keyboard, Loader2, Package, Play, RotateCw, Send, Truck, Wifi, WifiOff, Zap } from "lucide-react";
 import { MicButton } from "./MicButton";
 import { HandsFreeStatus, HandsFreeToggle } from "./HandsFree";
 import { RecoveryCard } from "./RecoveryCard";
 import { applyChoice, classifyYesNo, matchOption, recoveryText, type Clarify, type ConfirmValue } from "@/lib/recovery";
-import { answerText, consumeSimulateNoise, useFailures } from "@/lib/client/recoveryClient";
+import { answerText, consumeSimulateNoise, serverConfig, useFailures } from "@/lib/client/recoveryClient";
 import { useHandsFree } from "@/lib/client/useHandsFree";
 import { useToast } from "./Toast";
 import { useVoiceInput, type VoiceResult } from "@/lib/client/useVoiceInput";
@@ -61,6 +61,14 @@ export function ChatPanel({
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [latency, setLatency] = useState<Record<string, number>>({});
   const [live, setLive] = useState(false);
+  // Sarvam configured → an untranslated message is a temporary failure ("Translation pending"),
+  // not a missing key. Never guess: show the original until the retry succeeds.
+  const [sarvamOn, setSarvamOn] = useState(false);
+  const [retrying, setRetrying] = useState<Record<string, boolean>>({});
+  const autoRetried = useRef(new Set<string>());
+  useEffect(() => {
+    serverConfig().then((c) => setSarvamOn(c.sarvam));
+  }, []);
   const [showText, setShowText] = useState(false);
   const [text, setText] = useState("");
 
@@ -287,6 +295,42 @@ export function ChatPanel({
     }
   };
 
+  /** Retry a failed translation; on success the listener hears it (if it's theirs to hear). */
+  const retryTranslation = useCallback(
+    async (m: Message, manual: boolean) => {
+      setRetrying((x) => ({ ...x, [m.id]: true }));
+      try {
+        const res = await fetch(`/api/messages/${m.id}/translate`, { method: "POST" });
+        if (!res.ok) {
+          if (manual) toast(t("translationPending"));
+          return;
+        }
+        const { message } = (await res.json()) as { message: Message };
+        setMessages((xs) => xs.map((x) => (x.id === message.id ? { ...x, ...message } : x)));
+        if (message.sender !== side) autoPlay(message);
+      } catch {
+        if (manual) toast(t("errorGeneric"), "error");
+      } finally {
+        setRetrying((x) => ({ ...x, [m.id]: false }));
+      }
+    },
+    [side, autoPlay, toast, t]
+  );
+
+  // One automatic retry, a few seconds later, for messages I received untranslated.
+  // Timers live in a ref: re-renders (new messages, polling) must not cancel a scheduled retry.
+  const retryTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => retryTimers.current.forEach(clearTimeout), []);
+  useEffect(() => {
+    if (!sarvamOn) return;
+    for (const m of messages) {
+      const untranslated = m.translated_text == null && m.original_language !== m.translated_language;
+      if (!untranslated || m.sender === side || autoRetried.current.has(m.id)) continue;
+      autoRetried.current.add(m.id);
+      retryTimers.current.push(setTimeout(() => retryTranslation(m, false), 4000));
+    }
+  }, [messages, sarvamOn, side, retryTranslation]);
+
   /** Every utterance lands here: an answer to a pending question, or a new message. */
   const send = async (input: VoiceResult) => {
     if (pendingRef.current) return answerByVoice(input);
@@ -434,13 +478,30 @@ export function ChatPanel({
                     <span className="font-semibold">{m.original_text}</span>
                   </div>
                 )}
-                {untranslated && (
-                  <span
-                    className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold ${mine ? "bg-white/15 text-white/80" : "bg-turmeric-soft text-maroon"}`}
-                  >
-                    🔑 {t("translationKeyNotSet")}
-                  </span>
-                )}
+                {untranslated &&
+                  (sarvamOn ? (
+                    <span className="mt-1 flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${mine ? "bg-white/15 text-white/80" : "bg-turmeric-soft text-maroon"}`}
+                      >
+                        <Hourglass className={`size-3 ${retrying[m.id] ? "animate-spin" : ""}`} /> {t("translationPending")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => retryTranslation(m, true)}
+                        disabled={retrying[m.id]}
+                        className={`tap-56 inline-flex min-h-8 items-center gap-1 rounded-full px-2.5 text-xs font-bold ${mine ? "bg-white/20 text-white" : "bg-maroon text-white"}`}
+                      >
+                        <RotateCw className={`size-3 ${retrying[m.id] ? "animate-spin" : ""}`} /> {t("retry")}
+                      </button>
+                    </span>
+                  ) : (
+                    <span
+                      className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold ${mine ? "bg-white/15 text-white/80" : "bg-turmeric-soft text-maroon"}`}
+                    >
+                      🔑 {t("translationKeyNotSet")}
+                    </span>
+                  ))}
                 {small && small !== big && (
                   <p className={`mt-1 text-sm leading-snug ${mine ? "text-white/65" : "text-muted"}`}>
                     <span className="mr-1 text-xs font-bold uppercase tracking-wide opacity-80">
