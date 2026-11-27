@@ -1,5 +1,6 @@
 import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
 import type { SeedResult, SeedTts } from "../seed";
+import type { AuthRecord } from "../authCore";
 
 export type ProductWithSeller = Product & { seller: Pick<Seller, "id" | "name" | "city" | "state" | "language"> };
 
@@ -41,6 +42,12 @@ export interface Store {
   supportsShops(): Promise<boolean>;
   /** The language the seller SPEAKS (chat translation, STT, read-back). */
   updateSellerLanguage(sellerId: string, language: string): Promise<Seller>;
+  /** Prototype login (migration 0003 in Supabase). */
+  getAuth(sellerId: string): Promise<AuthRecord | null>;
+  saveAuth(rec: AuthRecord): Promise<void>;
+  findAuthByKeyHash(keyHash: string): Promise<AuthRecord | null>;
+  /** Sellers who can log in with a PIN (for "I already have a shop"). */
+  listLoginSellers(): Promise<Array<Pick<Seller, "id" | "name" | "city" | "shop">>>;
 
   getProduct(id: string): Promise<(Product & { seller: Seller }) | null>;
   listPublished(filters?: { category?: string; state?: string; sellerId?: string }): Promise<ProductWithSeller[]>;

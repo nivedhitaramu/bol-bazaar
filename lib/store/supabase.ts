@@ -3,6 +3,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAdminSupabase } from "../supabase/server";
 import { seedDemo } from "../seed";
 import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
+import type { AuthRecord } from "../authCore";
+
+/** seller_auth comes from migration 0003 — say so clearly instead of a cryptic DB error. */
+function authCheck<T>(res: { data: T; error: { message: string; code?: string } | null }): T {
+  if (res.error) {
+    if (/seller_auth/i.test(res.error.message) || res.error.code === "42P01" || res.error.code === "PGRST205")
+      throw new Error("MIGRATION_NEEDED: run supabase/migrations/0003_seller_auth.sql in the Supabase SQL Editor");
+    throw new Error(res.error.message);
+  }
+  return res.data;
+}
 import type { ConversationFull, DashboardData, OpenOrder, OrderWithProduct, ProductWithSeller, Store } from "./types";
 import { assembleDashboard } from "./shared";
 
@@ -27,6 +38,25 @@ export class SupabaseStore implements Store {
 
   async updateSellerLanguage(sellerId: string, language: string) {
     return check(await this.sb.from("sellers").update({ language }).eq("id", sellerId).select("*").single()) as Seller;
+  }
+
+  async getAuth(sellerId: string) {
+    return authCheck(await this.sb.from("seller_auth").select("*").eq("seller_id", sellerId).maybeSingle()) as AuthRecord | null;
+  }
+
+  async saveAuth(rec: AuthRecord) {
+    authCheck(await this.sb.from("seller_auth").upsert({ ...rec, updated_at: new Date().toISOString() }));
+  }
+
+  async findAuthByKeyHash(keyHash: string) {
+    return authCheck(await this.sb.from("seller_auth").select("*").eq("key_hash", keyHash).maybeSingle()) as AuthRecord | null;
+  }
+
+  async listLoginSellers() {
+    const ids = ((authCheck(await this.sb.from("seller_auth").select("seller_id").not("pin_hash", "is", null)) ?? []) as Array<{ seller_id: string }>).map((r) => r.seller_id);
+    if (!ids.length) return [];
+    const rows = (check(await this.sb.from("sellers").select("*").in("id", ids)) ?? []) as Seller[];
+    return rows.map((s) => ({ id: s.id, name: s.name, city: s.city, shop: s.shop ?? null }));
   }
 
   async supportsShops() {

@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "crypto";
 import { buildSeedRows, type SeedResult } from "../seed";
 import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
+import type { AuthRecord } from "../authCore";
 import { assembleDashboard } from "./shared";
 import type { ConversationFull, DashboardData, NewMessage, OpenOrder, ProductInput, ProductWithSeller, Store } from "./types";
 
@@ -12,6 +13,7 @@ type Db = {
   messages: Message[];
   orders: Order[];
   files: Map<string, { data: Buffer; type: string }>;
+  auth: Map<string, AuthRecord>;
 };
 
 const MAX_FILES = 300;
@@ -28,6 +30,7 @@ function fresh(): Db {
     messages: rows.messages,
     orders: [rows.order],
     files: g.__bolBazaarMemoryDb?.files ?? new Map(),
+    auth: new Map(),
   };
 }
 
@@ -64,6 +67,27 @@ export class MemoryStore implements Store {
     if (!s) throw new Error("Seller not found");
     s.language = language;
     return clone(s);
+  }
+
+  async getAuth(sellerId: string) {
+    const r = db().auth.get(sellerId);
+    return r ? { ...r } : null;
+  }
+
+  async saveAuth(rec: AuthRecord) {
+    db().auth.set(rec.seller_id, { ...rec });
+  }
+
+  async findAuthByKeyHash(keyHash: string) {
+    for (const r of db().auth.values()) if (r.key_hash === keyHash) return { ...r };
+    return null;
+  }
+
+  async listLoginSellers() {
+    const d = db();
+    return d.sellers
+      .filter((s) => d.auth.get(s.id)?.pin_hash)
+      .map((s) => clone({ id: s.id, name: s.name, city: s.city, shop: s.shop ?? null }));
   }
 
   async supportsShops() {
