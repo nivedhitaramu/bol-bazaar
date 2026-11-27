@@ -59,6 +59,13 @@ export class MemoryStore implements Store {
     return clone(s);
   }
 
+  async updateSellerLanguage(sellerId: string, language: string) {
+    const s = db().sellers.find((x) => x.id === sellerId);
+    if (!s) throw new Error("Seller not found");
+    s.language = language;
+    return clone(s);
+  }
+
   async supportsShops() {
     return true;
   }

@@ -25,6 +25,10 @@ export class SupabaseStore implements Store {
     return check(await this.sb.from("sellers").insert(row).select("*").single()) as Seller;
   }
 
+  async updateSellerLanguage(sellerId: string, language: string) {
+    return check(await this.sb.from("sellers").update({ language }).eq("id", sellerId).select("*").single()) as Seller;
+  }
+
   async supportsShops() {
     const { error } = await this.sb.from("sellers").select("shop").limit(1);
     return !error;

@@ -8,7 +8,7 @@ export default function ShopSetupPage() {
     <>
       <AppHeader />
       <main>
-        <SellerGate>{(seller) => <ShopSetup seller={seller} />}</SellerGate>
+        <SellerGate>{(seller, setSeller) => <ShopSetup seller={seller} setSeller={setSeller} />}</SellerGate>
       </main>
     </>
   );

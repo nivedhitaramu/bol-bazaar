@@ -10,8 +10,11 @@ import { useVoiceInput, type VoiceResult } from "@/lib/client/useVoiceInput";
 import { ClientApiError, postJson, postVoice, SwitchedToBrowserStt } from "@/lib/client/api";
 import { play } from "@/lib/client/player";
 import type { LocalSeller } from "@/lib/client/useSeller";
-import { translator, type I18nKey } from "@/lib/i18n";
-import { normalizeLang, shortOf } from "@/lib/languages";
+import type { I18nKey } from "@/lib/i18n";
+import { shortOf } from "@/lib/languages";
+import { useLang } from "@/components/LangProvider";
+import { SpeakLangPicker } from "@/components/LanguagePicker";
+import { useSpeakLang } from "@/lib/client/useSpeakLang";
 import { parseAmount } from "@/lib/numbers";
 import type { ShopDraft, ShopProfile } from "@/lib/types";
 
@@ -34,9 +37,10 @@ const FIELD_LABEL: Record<keyof ShopDraft, I18nKey> = {
   phone: "phoneLabel",
 };
 
-export function ShopSetup({ seller }: { seller: LocalSeller }) {
-  const lang = normalizeLang(seller.language);
-  const t = translator(lang); // her language, whatever the UI language is
+export function ShopSetup({ seller, setSeller }: { seller: LocalSeller; setSeller: (s: LocalSeller | null) => void }) {
+  // Labels follow the APP language (header); voice follows the language she SPEAKS.
+  const { t } = useLang();
+  const { speakLang: lang, setSpeakLang } = useSpeakLang(seller, setSeller);
   const { toast } = useToast();
   const [stage, setStage] = useState<LaunchStage>(0);
   const [busy, setBusy] = useState(false);
@@ -124,7 +128,10 @@ export function ShopSetup({ seller }: { seller: LocalSeller }) {
       <h1 className="mb-1 flex items-center gap-2 font-display text-2xl font-bold text-maroon">
         <Store className="size-6 text-saffron" /> {t("speakYourShop")}
       </h1>
-      <p className="mb-5 text-sm text-muted">{t("shopSetupHint")}</p>
+      <p className="mb-3 text-sm text-muted">{t("shopSetupHint")}</p>
+      <div className="mb-5">
+        <SpeakLangPicker value={lang} onChange={setSpeakLang} />
+      </div>
 
       {/* The one big mic */}
       {stage < 2 && (
@@ -331,7 +338,7 @@ function TextWithMic({
   );
 }
 
-function TypeInstead({ onSend, disabled, t }: { onSend: (text: string) => void; disabled: boolean; t: ReturnType<typeof translator> }) {
+function TypeInstead({ onSend, disabled, t }: { onSend: (text: string) => void; disabled: boolean; t: (k: I18nKey) => string }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   if (!open)

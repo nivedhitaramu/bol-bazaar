@@ -23,7 +23,9 @@ import { downscaleImage, postJson, postVoice, uploadFile } from "@/lib/client/ap
 import { play, stopAudio } from "@/lib/client/player";
 import type { LocalSeller } from "@/lib/client/useSeller";
 import type { VoiceResult } from "@/lib/client/useVoiceInput";
-import { CATEGORIES, langInfo, normalizeLang, shortOf } from "@/lib/languages";
+import { CATEGORIES, langInfo, shortOf } from "@/lib/languages";
+import { SpeakLangPicker } from "@/components/LanguagePicker";
+import { useSpeakLang } from "@/lib/client/useSpeakLang";
 import type { I18nKey } from "@/lib/i18n";
 import { formatINR, type Listing, type ProductDraft } from "@/lib/types";
 
@@ -49,10 +51,10 @@ const FIELD_LABEL: Record<keyof ProductDraft, I18nKey> = {
   craft_story: "story",
 };
 
-export function NewListing({ seller }: { seller: LocalSeller }) {
+export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSeller: (s: LocalSeller | null) => void }) {
   const { t } = useLang();
   const { toast } = useToast();
-  const sellerLang = normalizeLang(seller.language);
+  const { speakLang: sellerLang, setSpeakLang } = useSpeakLang(seller, setSeller);
   const sellerShort = shortOf(sellerLang);
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -262,9 +264,12 @@ export function NewListing({ seller }: { seller: LocalSeller }) {
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-4">
-      <h1 className="mb-4 flex items-center gap-2 font-display text-2xl font-bold text-maroon">
-        <Sparkles className="size-6 text-saffron" /> {t("newProduct")}
-      </h1>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-maroon">
+          <Sparkles className="size-6 text-saffron" /> {t("newProduct")}
+        </h1>
+        <SpeakLangPicker value={sellerLang} onChange={setSpeakLang} />
+      </div>
 
       {/* 1. Photo */}
       <section className="card mb-4 p-4" aria-label={t("photo")}>

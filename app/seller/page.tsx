@@ -8,7 +8,7 @@ export default function SellerPage() {
     <>
       <AppHeader />
       <main>
-        <SellerGate>{(seller, setSeller) => <Dashboard seller={seller} onSignOut={() => setSeller(null)} />}</SellerGate>
+        <SellerGate>{(seller, setSeller) => <Dashboard seller={seller} setSeller={setSeller} onSignOut={() => setSeller(null)} />}</SellerGate>
       </main>
     </>
   );

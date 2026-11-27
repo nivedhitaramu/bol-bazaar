@@ -9,7 +9,9 @@ import { getJson, postJson } from "@/lib/client/api";
 import type { LocalSeller } from "@/lib/client/useSeller";
 import { realtimeAvailable, subscribeAllMessages, subscribeOrders } from "@/lib/client/realtime";
 import { lastSeen } from "@/lib/client/unread";
-import { langInfo, normalizeLang, shortOf } from "@/lib/languages";
+import { langInfo, shortOf } from "@/lib/languages";
+import { SpeakLangPicker } from "@/components/LanguagePicker";
+import { useSpeakLang } from "@/lib/client/useSpeakLang";
 import { formatINR, listingFor, type OrderStatus } from "@/lib/types";
 import type { DashboardData } from "@/lib/data";
 
@@ -22,7 +24,15 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
   delivered: "bg-leaf/10 text-leaf",
 };
 
-export function Dashboard({ seller, onSignOut }: { seller: LocalSeller; onSignOut: () => void }) {
+export function Dashboard({
+  seller,
+  setSeller,
+  onSignOut,
+}: {
+  seller: LocalSeller;
+  setSeller: (s: LocalSeller | null) => void;
+  onSignOut: () => void;
+}) {
   const { lang, t } = useLang();
   const { toast } = useToast();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -31,7 +41,7 @@ export function Dashboard({ seller, onSignOut }: { seller: LocalSeller; onSignOu
   const [updating, setUpdating] = useState<string | null>(null);
   const [, force] = useState(0);
   const short = shortOf(lang);
-  const sellerLang = normalizeLang(seller.language);
+  const { speakLang: sellerLang, setSpeakLang } = useSpeakLang(seller, setSeller);
 
   const load = useCallback(async () => {
     try {
@@ -174,8 +184,11 @@ export function Dashboard({ seller, onSignOut }: { seller: LocalSeller; onSignOu
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-display text-2xl font-bold text-maroon">{data.seller.name}</h1>
           <p className="truncate text-sm text-muted">
-            {[data.seller.craft, data.seller.city, data.seller.state].filter(Boolean).join(" · ")} · {langInfo(data.seller.language).native}
+            {[data.seller.craft, data.seller.city, data.seller.state].filter(Boolean).join(" · ")}
           </p>
+          <div className="mt-2">
+            <SpeakLangPicker value={sellerLang} onChange={setSpeakLang} />
+          </div>
         </div>
         <button onClick={onSignOut} className="grid size-11 place-items-center rounded-full hover:bg-sand" aria-label="Sign out">
           <LogOut className="size-5 text-muted" />

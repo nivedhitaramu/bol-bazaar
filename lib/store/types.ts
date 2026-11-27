@@ -39,6 +39,8 @@ export interface Store {
   saveShop(sellerId: string, shop: ShopProfile): Promise<Seller>;
   /** False when the database predates migration 0002 (no sellers.shop column). */
   supportsShops(): Promise<boolean>;
+  /** The language the seller SPEAKS (chat translation, STT, read-back). */
+  updateSellerLanguage(sellerId: string, language: string): Promise<Seller>;
 
   getProduct(id: string): Promise<(Product & { seller: Seller }) | null>;
   listPublished(filters?: { category?: string; state?: string; sellerId?: string }): Promise<ProductWithSeller[]>;

@@ -64,7 +64,7 @@ export function DemoSplit() {
             <span className="ml-auto rounded-full bg-white/15 px-2 py-0.5 text-sm">தமிழ்</span>
           </div>
           <div className="border-b border-sand bg-white p-2">
-            <OrderVoiceCommand sellerId={DEMO.meenaId} language="ta-IN" compact />
+            <OrderVoiceCommand sellerId={DEMO.meenaId} language="ta-IN" uiLang="ta-IN" compact />
           </div>
           <div className="min-h-0 flex-1">
             <ChatPanel conversationId={DEMO.conversationId} side="seller" soundEnabled={sound} compact panelId="demo-seller" />

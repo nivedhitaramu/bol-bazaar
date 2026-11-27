@@ -8,7 +8,7 @@ export default function NewProductPage() {
     <>
       <AppHeader />
       <main>
-        <SellerGate>{(seller) => <NewListing seller={seller} />}</SellerGate>
+        <SellerGate>{(seller, setSeller) => <NewListing seller={seller} setSeller={setSeller} />}</SellerGate>
       </main>
     </>
   );

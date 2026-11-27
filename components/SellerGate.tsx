@@ -6,13 +6,14 @@ import { useLang } from "./LangProvider";
 import { useToast } from "./Toast";
 import { type LocalSeller, useSeller } from "@/lib/client/useSeller";
 import { DEMO } from "@/lib/demoIds";
+import { normalizeLang } from "@/lib/languages";
 import { getJson } from "@/lib/client/api";
 import type { Seller } from "@/lib/types";
 
 /** Renders children with the local seller, or an onboarding prompt. */
 export function SellerGate({ children }: { children: (seller: LocalSeller, setSeller: (s: LocalSeller | null) => void) => React.ReactNode }) {
   const { seller, ready, setSeller } = useSeller();
-  const { t } = useLang();
+  const { t, suggestLang } = useLang();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -27,6 +28,12 @@ export function SellerGate({ children }: { children: (seller: LocalSeller, setSe
       setLoading(false);
     }
   }, [setSeller, t, toast]);
+
+  // On seller pages the app language defaults to the seller's own language
+  // (unless the user explicitly picked one in the header).
+  useEffect(() => {
+    if (seller) suggestLang(normalizeLang(seller.language));
+  }, [seller, suggestLang]);
 
   // Links from /demo carry ?demo=1 → become Meena automatically (one click for judges).
   useEffect(() => {

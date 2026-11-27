@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Mic } from "lucide-react";
 import { MicButton } from "./MicButton";
 import { useToast } from "./Toast";
+import { useLang } from "./LangProvider";
 import { useVoiceInput, type VoiceResult } from "@/lib/client/useVoiceInput";
 import { postVoice, SwitchedToBrowserStt } from "@/lib/client/api";
 import { play } from "@/lib/client/player";
@@ -23,14 +24,19 @@ export function OrderVoiceCommand({
   language,
   onUpdated,
   compact = false,
+  uiLang,
 }: {
   sellerId: string;
+  /** Language the seller SPEAKS (STT + spoken confirmation). */
   language: string;
   onUpdated?: (o: Order) => void;
   compact?: boolean;
+  /** Pin the label language (the /demo panels); defaults to the app language. */
+  uiLang?: string;
 }) {
   const lang = normalizeLang(language);
-  const t = translator(lang);
+  const app = useLang();
+  const t = uiLang ? translator(normalizeLang(uiLang)) : app.t;
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [heard, setHeard] = useState<string | null>(null);

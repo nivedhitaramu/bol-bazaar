@@ -118,6 +118,10 @@ const en = {
   fromProfile: "from your profile",
   migrationNeeded: "Storefronts need a one-time database update (run supabase/migrations/0002_shop_profile.sql)",
   startAgain: "Speak again",
+  appLanguage: "App language",
+  appLanguageHint: "All buttons and labels will be shown in this language.",
+  iSpeak: "I speak",
+  iSpeakHint: "The language you talk in. We listen, read back and write your listings in it.",
   keyNotSet: "AI key not set — using basic offline mode",
   demoBanner: "Demo mode — API keys not set. Add keys in .env.local for full AI voice.",
 } as const;
@@ -243,6 +247,10 @@ const hi: Dict = {
   fromProfile: "आपकी प्रोफ़ाइल से",
   migrationNeeded: "स्टोरफ़्रंट के लिए डेटाबेस अपडेट चाहिए (supabase/migrations/0002_shop_profile.sql चलाएँ)",
   startAgain: "फिर से बोलें",
+  appLanguage: "ऐप की भाषा",
+  appLanguageHint: "सभी बटन और लेबल इसी भाषा में दिखेंगे।",
+  iSpeak: "मैं बोलती/बोलता हूँ",
+  iSpeakHint: "जिस भाषा में आप बोलते हैं। हम इसी में सुनेंगे, पढ़कर सुनाएँगे और लिस्टिंग लिखेंगे।",
   keyNotSet: "AI कुंजी सेट नहीं है — बुनियादी ऑफ़लाइन मोड",
   demoBanner: "डेमो मोड — API कुंजियाँ सेट नहीं हैं। पूरी AI आवाज़ के लिए .env.local में कुंजियाँ जोड़ें।",
 };
@@ -365,6 +373,10 @@ const ta: Dict = {
   fromProfile: "உங்கள் சுயவிவரத்திலிருந்து",
   migrationNeeded: "கடைப் பக்கத்திற்கு ஒருமுறை தரவுத்தள மேம்படுத்தல் தேவை (supabase/migrations/0002_shop_profile.sql)",
   startAgain: "மீண்டும் பேசு",
+  appLanguage: "செயலி மொழி",
+  appLanguageHint: "எல்லா பொத்தான்களும் குறிப்புகளும் இந்த மொழியில் காட்டப்படும்.",
+  iSpeak: "நான் பேசும் மொழி",
+  iSpeakHint: "நீங்கள் பேசும் மொழி. இதிலேயே கேட்டு, படித்துக் காட்டி, உங்கள் பட்டியலை எழுதுவோம்.",
   keyNotSet: "AI விசை அமைக்கப்படவில்லை — அடிப்படை ஆஃப்லைன் முறை",
   demoBanner: "டெமோ முறை — API விசைகள் அமைக்கப்படவில்லை. முழு AI குரலுக்கு .env.local-ல் விசைகளைச் சேர்க்கவும்.",
 };
