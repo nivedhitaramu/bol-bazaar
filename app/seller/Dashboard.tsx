@@ -1,11 +1,13 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Eye, EyeOff, Loader2, LogOut, MessageCircle, Mic, Package, Plus, Store, Truck } from "lucide-react";
+import { Check, Eye, EyeOff, KeyRound, Loader2, LogOut, MessageCircle, Mic, Package, Plus, Store, Truck } from "lucide-react";
 import { useLang } from "@/components/LangProvider";
 import { useToast } from "@/components/Toast";
 import { OrderVoiceCommand } from "@/components/OrderVoiceCommand";
 import { AskShop } from "@/components/AskShop";
+import { SaveSellerLink } from "@/components/SaveSellerLink";
+import { DEMO } from "@/lib/demoIds";
 import { getJson, postJson } from "@/lib/client/api";
 import type { LocalSeller } from "@/lib/client/useSeller";
 import { realtimeAvailable, subscribeAllMessages, subscribeOrders } from "@/lib/client/realtime";
@@ -43,6 +45,8 @@ export function Dashboard({
   const [, force] = useState(0);
   const short = shortOf(lang);
   const { speakLang: sellerLang, setSpeakLang } = useSpeakLang(seller, setSeller);
+  const isDemoSeller = seller.id === DEMO.meenaId || seller.id === DEMO.rameshId;
+  const [showSaveLink, setShowSaveLink] = useState(Boolean(seller.key));
 
   const load = useCallback(async () => {
     try {
@@ -191,10 +195,20 @@ export function Dashboard({
             <SpeakLangPicker value={sellerLang} onChange={setSpeakLang} />
           </div>
         </div>
-        <button onClick={onSignOut} className="grid size-14 place-items-center rounded-full hover:bg-sand" aria-label="Sign out">
-          <LogOut className="size-5 text-muted" />
+        <button onClick={onSignOut} className="btn btn-ghost min-h-14 shrink-0 px-3 text-sm" aria-label={t("logout")}>
+          <LogOut className="size-5" /> {t("logout")}
         </button>
       </div>
+
+      {/* Prototype login: get a private link + PIN to use this shop on another phone */}
+      {!isDemoSeller &&
+        (showSaveLink ? (
+          <SaveSellerLink seller={seller} setSeller={setSeller} />
+        ) : (
+          <button type="button" onClick={() => setShowSaveLink(true)} className="btn btn-ghost mb-4 w-full border-2 border-ink/10">
+            <KeyRound className="size-5" /> {t("saveLinkTitle")}
+          </button>
+        ))}
 
       {/* Ask your shop — spoken summary for sellers who can't read */}
       <AskShop sellerId={seller.id} speakLang={sellerLang} />

@@ -1,7 +1,17 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 
-export type LocalSeller = { id: string; name: string; language: string; gender: "female" | "male"; city?: string | null };
+export type LocalSeller = {
+  id: string;
+  name: string;
+  language: string;
+  gender: "female" | "male";
+  city?: string | null;
+  /** Signed session from /api/auth (prototype login). Demo sellers have none. */
+  token?: string;
+  /** The private link key — only kept on the device that created or opened it. */
+  key?: string;
+};
 const KEY = "bb_seller";
 
 export function readSeller(): LocalSeller | null {

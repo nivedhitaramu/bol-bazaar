@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Sparkles, Store } from "lucide-react";
+import { KeyRound, Loader2, Sparkles, Store } from "lucide-react";
 import { useLang } from "./LangProvider";
 import { useToast } from "./Toast";
 import { type LocalSeller, useSeller } from "@/lib/client/useSeller";
@@ -59,6 +59,9 @@ export function SellerGate({ children }: { children: (seller: LocalSeller, setSe
         <div className="mt-6 flex flex-col gap-3">
           <Link href="/seller/onboard" className="btn btn-primary text-lg">
             <Sparkles className="size-5" /> {t("startSelling")}
+          </Link>
+          <Link href="/seller/login" className="btn btn-ghost border-2 border-maroon/30">
+            <KeyRound className="size-5" /> {t("haveShop")}
           </Link>
           <button onClick={pickDemoSeller} disabled={loading} className="btn btn-ghost">
             {loading ? <Loader2 className="size-5 animate-spin" /> : null} {t("useDemoSeller")}

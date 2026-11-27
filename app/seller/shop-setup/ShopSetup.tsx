@@ -14,6 +14,7 @@ import type { I18nKey } from "@/lib/i18n";
 import { shortOf } from "@/lib/languages";
 import { useLang } from "@/components/LangProvider";
 import { SpeakLangPicker } from "@/components/LanguagePicker";
+import { SaveSellerLink } from "@/components/SaveSellerLink";
 import { useSpeakLang } from "@/lib/client/useSpeakLang";
 import { parseAmount } from "@/lib/numbers";
 import type { ShopDraft, ShopProfile } from "@/lib/types";
@@ -200,6 +201,8 @@ export function ShopSetup({ seller, setSeller }: { seller: LocalSeller; setSelle
           </div>
         </section>
       )}
+
+      {live && stage === 4 && <SaveSellerLink seller={seller} setSeller={setSeller} />}
 
       {/* What we understood — yellow = not said, fill by voice */}
       {draft && stage === 4 && (

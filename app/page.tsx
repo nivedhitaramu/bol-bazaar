@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftRight, ArrowRight, BadgeIndianRupee, FileText, Mic, PlayCircle, ShoppingBag, Store } from "lucide-react";
+import { ArrowLeftRight, ArrowRight, BadgeIndianRupee, FileText, KeyRound, Mic, PlayCircle, ShoppingBag, Store } from "lucide-react";
 import { Logo } from "@/components/AppHeader";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { LandingLanguages } from "@/components/LandingLanguages";
@@ -68,6 +68,9 @@ export default async function Home() {
             </Link>
           </div>
 
+          <Link href="/seller/login" className="mx-auto mt-4 flex min-h-14 w-fit items-center gap-2 rounded-full px-4 font-bold text-maroon underline underline-offset-4">
+            <KeyRound className="size-5" /> {t("haveShop")}
+          </Link>
           <Link href="/demo" className="mx-auto mt-5 flex min-h-14 w-fit items-center gap-2 rounded-full bg-ink px-5 font-bold text-cream shadow-lg transition hover:bg-ink/90">
             <PlayCircle className="size-5 text-turmeric" /> {t("demo")}: தமிழ் <ArrowLeftRight className="size-4" /> हिन्दी
           </Link>
