@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeftRight, ExternalLink, Loader2, RotateCcw } from "lucide-react";
+import { ArrowLeftRight, ExternalLink, Loader2, Mic, RotateCcw, Store } from "lucide-react";
 import { ChatPanel } from "@/components/ChatPanel";
 import { SoundGate } from "@/components/SoundGate";
 import { Logo } from "@/components/AppHeader";
@@ -41,6 +41,12 @@ export function DemoSplit() {
           <span className="hidden text-base font-semibold text-muted md:inline">— live cross-language chat</span>
         </p>
         <div className="ml-auto flex items-center gap-2">
+          <Link href="/seller/shop-setup?demo=1" className="btn btn-saffron min-h-11 px-3 text-sm">
+            <Mic className="size-4" /> Speak your shop
+          </Link>
+          <Link href={`/shop/${DEMO.meenaId}`} className="btn btn-ghost min-h-11 px-3 text-sm">
+            <Store className="size-4" /> Meena&apos;s shop
+          </Link>
           <Link href={`/chat/${DEMO.conversationId}?as=buyer`} target="_blank" className="btn btn-ghost min-h-11 px-3 text-sm">
             <ExternalLink className="size-4" /> Buyer on phone
           </Link>

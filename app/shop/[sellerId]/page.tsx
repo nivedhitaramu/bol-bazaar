@@ -1,51 +1,68 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { MapPin } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
-import { ProductCard } from "@/components/ProductCard";
-import { HearTheMaker } from "@/components/HearTheMaker";
 import { getSeller, listPublished } from "@/lib/data";
-import { translator } from "@/lib/i18n";
-import { langInfo, shortOf } from "@/lib/languages";
 import { getServerLang } from "@/lib/serverLang";
+import { getStore } from "@/lib/store";
+import { translateListing } from "@/lib/llm";
+import { sarvamAvailable } from "@/lib/sarvam";
+import type { ProductWithSeller } from "@/lib/data";
+import { Storefront } from "./Storefront";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
-export default async function SellerShopPage({ params }: { params: Promise<{ sellerId: string }> }) {
+type Props = { params: Promise<{ sellerId: string }> };
+const isUuid = (s: string) => /^[0-9a-f-]{36}$/i.test(s);
+const STOREFRONT_LANGS = ["en", "hi", "ta"];
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { sellerId } = await params;
-  const lang = await getServerLang();
-  const t = translator(lang);
-  if (!/^[0-9a-f-]{36}$/i.test(sellerId)) notFound();
+  if (!isUuid(sellerId)) return {};
+  try {
+    const s = await getSeller(sellerId);
+    const en = s?.shop?.i18n?.en;
+    if (!s) return {};
+    return {
+      title: `${en?.shop_name ?? s.name} — Bol Bazaar`,
+      description: en?.tagline ?? [s.craft, s.city].filter(Boolean).join(" · "),
+    };
+  } catch {
+    return {};
+  }
+}
 
+/**
+ * Make sure every product has a listing in en / hi / ta so the storefront's language switch
+ * translates everything. Uses the protected translation pipeline; results are cached on the
+ * product, so this only costs anything on the first view. Capped at ~6 s.
+ */
+async function ensureListingLanguages(products: ProductWithSeller[]) {
+  if (!sarvamAvailable()) return;
+  const store = getStore();
+  const jobs = products.flatMap((p) =>
+    STOREFRONT_LANGS.filter((s) => !p.listing[s] && p.listing.en).map(async (s) => {
+      const l = await translateListing(p.listing.en, `${s}-IN`);
+      p.listing = { ...p.listing, [s]: l };
+      await store.setProductListing(p.id, p.listing);
+    })
+  );
+  if (!jobs.length) return;
+  await Promise.race([Promise.allSettled(jobs), new Promise((r) => setTimeout(r, 6000))]);
+}
+
+export default async function SellerShopPage({ params }: Props) {
+  const { sellerId } = await params;
+  if (!isUuid(sellerId)) notFound();
+  const lang = await getServerLang();
   const [seller, products] = await Promise.all([getSeller(sellerId), listPublished({ sellerId })]);
   if (!seller) notFound();
+  await ensureListingLanguages(products);
 
   return (
     <>
       <AppHeader />
-      <main className="mx-auto max-w-5xl px-4 pb-16 pt-4">
-        <section className="card motif mb-6 p-5">
-          <div className="flex items-center gap-4">
-            <div className="grid size-16 shrink-0 place-items-center rounded-full bg-maroon font-display text-3xl font-bold text-white">
-              {seller.name.slice(0, 1)}
-            </div>
-            <div className="min-w-0">
-              <h1 className="font-display text-3xl font-bold text-maroon">{seller.name}</h1>
-              <p className="flex items-center gap-1 text-muted">
-                <MapPin className="size-4" />
-                {[seller.craft, seller.city, seller.state].filter(Boolean).join(" · ")} · {langInfo(seller.language).native}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <HearTheMaker seller={seller} />
-          </div>
-        </section>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {products.map((p) => (
-            <ProductCard key={p.id} p={p} langShort={shortOf(lang)} byLabel={t("by")} />
-          ))}
-        </div>
-      </main>
+      <Storefront seller={seller} products={products} initialLang={lang} />
     </>
   );
 }

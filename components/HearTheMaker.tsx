@@ -2,16 +2,26 @@
 import { useRef, useState } from "react";
 import { Headphones, Languages, Square } from "lucide-react";
 import { useLang } from "./LangProvider";
+import { translator } from "@/lib/i18n";
 import { useToast } from "./Toast";
 import { play, speak, stopAudio, unlockAudio } from "@/lib/client/player";
-import { langInfo } from "@/lib/languages";
+import { langInfo, normalizeLang } from "@/lib/languages";
 import type { Seller } from "@/lib/types";
 
 type Phase = "idle" | "original" | "translating" | "translated";
 
 /** Plays the maker's own voice, then the same intro translated into the buyer's language. */
-export function HearTheMaker({ seller }: { seller: Pick<Seller, "name" | "language" | "gender" | "voice_intro_url" | "voice_intro_transcript" | "craft" | "city"> }) {
-  const { lang, t } = useLang();
+export function HearTheMaker({
+  seller,
+  targetLang,
+}: {
+  seller: Pick<Seller, "name" | "language" | "gender" | "voice_intro_url" | "voice_intro_transcript" | "craft" | "city">;
+  /** Language to translate the intro into (defaults to the viewer's UI language). */
+  targetLang?: string;
+}) {
+  const ctx = useLang();
+  const lang = targetLang ?? ctx.lang;
+  const t = targetLang ? translator(normalizeLang(targetLang)) : ctx.t;
   const { toast } = useToast();
   const [phase, setPhase] = useState<Phase>("idle");
   const [translated, setTranslated] = useState<string | null>(null);

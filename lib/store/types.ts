@@ -1,4 +1,4 @@
-import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller } from "../types";
+import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
 import type { SeedResult, SeedTts } from "../seed";
 
 export type ProductWithSeller = Product & { seller: Pick<Seller, "id" | "name" | "city" | "state" | "language"> };
@@ -35,6 +35,10 @@ export interface Store {
 
   getSeller(id: string): Promise<Seller | null>;
   insertSeller(row: NewSeller): Promise<Seller>;
+  /** Save the "Speak your shop online" profile. */
+  saveShop(sellerId: string, shop: ShopProfile): Promise<Seller>;
+  /** False when the database predates migration 0002 (no sellers.shop column). */
+  supportsShops(): Promise<boolean>;
 
   getProduct(id: string): Promise<(Product & { seller: Seller }) | null>;
   listPublished(filters?: { category?: string; state?: string; sellerId?: string }): Promise<ProductWithSeller[]>;

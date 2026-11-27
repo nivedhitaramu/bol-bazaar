@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAdminSupabase } from "../supabase/server";
 import { seedDemo } from "../seed";
-import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller } from "../types";
+import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
 import type { ConversationFull, DashboardData, OpenOrder, OrderWithProduct, ProductWithSeller, Store } from "./types";
 import { assembleDashboard } from "./shared";
 
@@ -23,6 +23,22 @@ export class SupabaseStore implements Store {
 
   async insertSeller(row: Omit<Seller, "id" | "created_at">) {
     return check(await this.sb.from("sellers").insert(row).select("*").single()) as Seller;
+  }
+
+  async supportsShops() {
+    const { error } = await this.sb.from("sellers").select("shop").limit(1);
+    return !error;
+  }
+
+  async saveShop(sellerId: string, shop: ShopProfile) {
+    const { data, error } = await this.sb.from("sellers").update({ shop }).eq("id", sellerId).select("*").single();
+    if (error) {
+      if (/shop/i.test(error.message) && /column|schema/i.test(error.message)) {
+        throw new Error("MIGRATION_NEEDED: run supabase/migrations/0002_shop_profile.sql in the Supabase SQL Editor");
+      }
+      throw new Error(error.message);
+    }
+    return data as Seller;
   }
 
   async getProduct(id: string) {

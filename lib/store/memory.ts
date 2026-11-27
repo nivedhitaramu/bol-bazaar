@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "crypto";
 import { buildSeedRows, type SeedResult } from "../seed";
-import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller } from "../types";
+import type { Conversation, Listing, Message, Order, OrderStatus, Product, Seller, ShopProfile } from "../types";
 import { assembleDashboard } from "./shared";
 import type { ConversationFull, DashboardData, NewMessage, OpenOrder, ProductInput, ProductWithSeller, Store } from "./types";
 
@@ -56,6 +56,17 @@ export class MemoryStore implements Store {
   async insertSeller(row: Omit<Seller, "id" | "created_at">) {
     const s: Seller = { ...row, id: randomUUID(), created_at: now() };
     db().sellers.push(s);
+    return clone(s);
+  }
+
+  async supportsShops() {
+    return true;
+  }
+
+  async saveShop(sellerId: string, shop: ShopProfile) {
+    const s = db().sellers.find((x) => x.id === sellerId);
+    if (!s) throw new Error("Seller not found");
+    s.shop = clone(shop);
     return clone(s);
   }
 

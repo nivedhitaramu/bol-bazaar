@@ -48,6 +48,8 @@ Bol Bazaar removes both.
 
 ## ✨ Key features
 
+- **🏪 Speak your shop online** (`/seller/shop-setup`): one mic, up to 60 seconds. *"I am Meena, I weave Kanchipuram silk for 20 years, my sarees start at 5000…"* turns into a storefront in Tamil, Hindi and English. The screen walks through **Listening → Understanding → Writing in 3 languages → Your shop is live!** and then reads back in her language: *"Your shop is live. Share it on WhatsApp?"* Only what she said is extracted; anything missing is highlighted in yellow so she can fill it by voice.
+
 - **🎤 List by voice**: photo, speak, then a structured listing in 3 languages, with fields that weren't said **highlighted in yellow** (never invented).
 - **🔢 Exact numbers**: understands *lakh*, *hazaar*, *ஆயிரம்*, "8.5k" and digits in any script. A deterministic guard makes sure a price the seller actually said is **never altered** by the LLM.
 - **🗣️ Voice edits**: "change price to 8000", "add: available in red".
@@ -57,6 +59,22 @@ Bol Bazaar removes both.
 - **🖥️ /demo**: Tamil seller and Hindi buyer **side by side on one screen**, with a one-click **Reset demo**.
 - **🌐 9 languages**: Tamil, Hindi, English, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati. Core UI is fully translated into Tamil and Hindi.
 - **🛟 Works even when AI is down**: browser speech recognition and speech synthesis take over, and rule-based extraction keeps listings and order commands working. A small toast tells the user; nothing crashes.
+
+## 🏪 Speak your shop online
+
+1. Open **`/demo`** and click **Speak your shop**. You're signed in as Meena automatically.
+2. Tap the big mic and talk for up to 60 seconds, in any language.
+3. Watch **Listening → Understanding → Writing in 3 languages → Your shop is live!**. You'll hear "Your shop is live. Share it on WhatsApp?" in Tamil, with a share button.
+4. Open the storefront at `/shop/<sellerId>`. It has a hero with the shop name and story, **Hear the maker**, a WhatsApp button, the products, and a **தமிழ் / हिन्दी / English** switch that changes all of the storefront text.
+
+How it works:
+- **Speech-to-text:** recordings up to 60 s are split into chunks of 25 s or less (Sarvam's REST limit is 30 s) and transcribed in parallel.
+- **Extraction:** `{shop_name, owner_name, city, craft, years_of_experience, story, specialties[], price_range}` is extracted with zod validation. A rule-based guard keeps spoken prices and years exact: "ஐயாயிரம் ரூபாய் முதல்" becomes "From ₹5,000".
+- **Writing the copy:** English copy is written from those facts only, then translated with the protected pipeline (names, numbers, glossary, back-check).
+- **Prices and years:** they use fixed templates in each language, so they never pass through machine translation.
+- **Shop names:** they're transliterated rather than translated (மீனா சில்க்ஸ் → Meena Silks → मीना सिल्क्स).
+- **Without keys:** rule-based extraction plus offline templates. Her own words appear in her language, and Meena and Ramesh have pre-written storefronts.
+- **Supabase:** run `supabase/migrations/0002_shop_profile.sql`, which adds the `sellers.shop` column. Until then, publishing returns a friendly "migration needed" message and storefronts still render.
 
 ## 🎬 The demo moment (60 seconds)
 
@@ -176,7 +194,7 @@ cp .env.example .env.local     # Windows PowerShell: Copy-Item .env.example .env
 
 ### 3. Database
 
-In the Supabase dashboard, open **SQL Editor**, paste the contents of [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), and click **Run**.
+In the Supabase dashboard, open **SQL Editor**, paste the contents of [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), and click **Run**. Then do the same for [`0002_shop_profile.sql`](supabase/migrations/0002_shop_profile.sql), which adds the storefront column used by "Speak your shop online".
 (Or use `supabase db push` with the Supabase CLI.) This creates the tables, RLS policies, the Realtime publication for `messages` and `orders`, and the public Storage buckets.
 
 ### 4. Seed and run (Supabase mode)

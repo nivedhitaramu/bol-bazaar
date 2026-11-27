@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Eye, EyeOff, Loader2, LogOut, MessageCircle, Package, Plus, Store, Truck } from "lucide-react";
+import { Check, Eye, EyeOff, Loader2, LogOut, MessageCircle, Mic, Package, Plus, Store, Truck } from "lucide-react";
 import { useLang } from "@/components/LangProvider";
 import { useToast } from "@/components/Toast";
 import { OrderVoiceCommand } from "@/components/OrderVoiceCommand";
@@ -180,6 +180,26 @@ export function Dashboard({ seller, onSignOut }: { seller: LocalSeller; onSignOu
         <button onClick={onSignOut} className="grid size-11 place-items-center rounded-full hover:bg-sand" aria-label="Sign out">
           <LogOut className="size-5 text-muted" />
         </button>
+      </div>
+
+      {/* Speak your shop online */}
+      <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+        <Link
+          href="/seller/shop-setup"
+          className="group relative flex items-center gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-maroon to-saffron p-4 text-white shadow-xl transition active:scale-[0.99]"
+        >
+          <span className="motif absolute inset-0 opacity-20" aria-hidden />
+          <span className="relative grid size-14 shrink-0 place-items-center rounded-2xl bg-white/15">
+            <Mic className="size-7 text-turmeric" />
+          </span>
+          <span className="relative min-w-0">
+            <span className="block font-display text-xl font-extrabold leading-tight">{t("speakYourShop")}</span>
+            <span className="block text-sm text-white/85">{t("shopSetupCta")}</span>
+          </span>
+        </Link>
+        <Link href={`/shop/${seller.id}`} className="btn btn-ghost min-h-14">
+          <Store className="size-5" /> {t("viewShop")}
+        </Link>
       </div>
 
       <Link href="/seller/new" className="btn btn-primary mb-4 w-full text-lg">

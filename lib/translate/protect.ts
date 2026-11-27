@@ -152,8 +152,15 @@ const TOKEN_RE = /[⟦\[【]\s*(\d{1,3})\s*[⟧\]】]/g;
  * Replace numbers and names with ⟦n⟧ tokens.
  * `extraNames` = the seller's/buyer's own names and product names for this conversation (kept verbatim).
  */
-export function mask(text: string, extraNames: string[] = [], opts: { numbers?: "digits" | "tokens" } = {}): Masked {
+export function mask(
+  text: string,
+  extraNames: string[] = [],
+  opts: { numbers?: "digits" | "tokens"; knownNames?: "token" | "verify" } = {}
+): Masked {
   const numbersMode = opts.numbers ?? "tokens";
+  // "verify": well-known names (NAMES table) are left for the model to inflect naturally
+  // (Tamil glues case endings: காஞ்சிபுரத்தில்) and checked afterwards with missingNames().
+  const knownMode = opts.knownNames ?? "token";
   const slots: Slot[] = [];
   type Hit = { start: number; end: number; slot: SlotData };
   const hits: Hit[] = [];
@@ -174,8 +181,14 @@ export function mask(text: string, extraNames: string[] = [], opts: { numbers?: 
   // Names: only as standalone words — Tamil glues case suffixes onto names ("லக்னோவுக்கு"), and
   // tokenising half a word would break it. Those inflected forms are left to the model.
   const candidates: Array<{ form: string; forms: Record<string, string> | null }> = [];
-  for (const n of NAMES) for (const f of Object.values(n)) candidates.push({ form: f, forms: n });
-  for (const x of extraNames) if (x && x.trim().length >= 2) candidates.push({ form: x.trim(), forms: null });
+  const known = new Set(NAMES.flatMap((n) => Object.values(n).map((f) => f.toLowerCase())));
+  if (knownMode === "token") for (const n of NAMES) for (const f of Object.values(n)) candidates.push({ form: f, forms: n });
+  for (const x of extraNames) {
+    const v = x?.trim();
+    if (!v || v.length < 2) continue;
+    if (knownMode === "verify" && known.has(v.toLowerCase())) continue;
+    candidates.push({ form: v, forms: null });
+  }
   candidates.sort((a, b) => b.form.length - a.form.length); // longest first ("Tamil Nadu" before "Tamil")
 
   for (const c of candidates) {
@@ -227,6 +240,27 @@ export function restore(translated: string, slots: Slot[], target: Lang): { text
     return slotValue(slot, target);
   });
   return { text, lost: slots.filter((s) => !seen.has(Number(s.token.slice(1, -1)))) };
+}
+
+/**
+ * Name back-check for "verify" mode: every well-known name in the source must appear in the output
+ * in the target script (a stem match allows Tamil case endings: காஞ்சிபுரம் → காஞ்சிபுரத்தில்).
+ */
+export function missingNames(source: string, translated: string, target: Lang): string[] {
+  const t = short(target);
+  const missing: string[] = [];
+  for (const n of NAMES) {
+    const forms = Object.values(n);
+    const inSource = forms.some((f) => wordRe(f).test(source) || (scriptOf(f) !== "Latn" && source.includes(f)));
+    if (!inSource) continue;
+    const accept = [n[t], n.en].filter(Boolean).map((f) => {
+      const chars = [...f];
+      return chars.slice(0, Math.max(3, chars.length - 2)).join("").toLowerCase();
+    });
+    const out = translated.toLowerCase();
+    if (!accept.some((stem) => out.includes(stem))) missing.push(n.en);
+  }
+  return missing;
 }
 
 // ───────────────────────── Glossary post-pass ─────────────────────────

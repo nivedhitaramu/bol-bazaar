@@ -109,3 +109,12 @@ test("no-keys dictionary: demo phrases translate and keep their numbers", () => 
   assert.equal(translateOffline("मेरे भाई की शादी अगले महीने है", "hi-IN", "ta-IN"), null);
   assert.equal(translateOffline("Order confirm pannu, naalaikku ship pannuven", "en-IN", "hi-IN"), "ऑर्डर की पुष्टि करें, मैं इसे कल भेज दूँगी।");
 });
+
+test("known names in 'verify' mode are left for natural grammar and checked afterwards", async () => {
+  const { missingNames } = await import("../lib/translate/protect");
+  const m = mask("Meena weaves in Kanchipuram for Zoya", ["Meena", "Zoya"], { numbers: "digits", knownNames: "verify" });
+  assert.equal(m.text, "Meena weaves in Kanchipuram for ⟦1⟧", "only the unknown name is tokenised");
+  // Tamil case ending glued onto the name still counts (காஞ்சிபுரம் → காஞ்சிபுரத்தில்):
+  assert.deepEqual(missingNames("Meena weaves in Kanchipuram", "மீனா காஞ்சிபுரத்தில் நெய்கிறார்", "ta-IN"), []);
+  assert.deepEqual(missingNames("Meena weaves in Kanchipuram", "அவர் நெய்கிறார்", "ta-IN"), ["Meena", "Kanchipuram"]);
+});

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Conversation, Listing, Message, Order, Product, Seller } from "./types";
+import type { Conversation, Listing, Message, Order, Product, Seller, ShopProfile } from "./types";
 
 import { DEMO } from "./demoIds";
 export { DEMO };
@@ -185,6 +185,104 @@ export const MESSAGES: Array<{ sender: "buyer" | "seller"; hi: string; ta: strin
   },
 ];
 
+/** Pre-written storefronts for the demo sellers (all three languages, so keyless mode looks complete). */
+export const SHOPS: Record<string, Omit<ShopProfile, "updated_at">> = {
+  [DEMO.meenaId]: {
+    shop_name: "Meena Silks",
+    owner_name: "Meena",
+    city: "Kanchipuram",
+    craft: "Kanchipuram silk weaving",
+    years_of_experience: 20,
+    story:
+      "Meena has woven Kanchipuram silk sarees for 20 years, a craft she learnt from her mother. Every saree is woven by hand on a pit loom.",
+    specialties: ["Kanchipuram silk sarees", "Real zari borders", "Handloom cotton"],
+    price_range: { min: 1800, max: 8500 },
+    phone: null,
+    transcript:
+      "என் பெயர் மீனா. நான் இருபது வருடமாக காஞ்சிபுரம் பட்டுப் புடவை நெய்கிறேன். என் அம்மாவிடம் கற்றுக்கொண்டேன். என் கடையின் பெயர் மீனா சில்க்ஸ்.",
+    language: "ta-IN",
+    i18n: {
+      en: {
+        shop_name: "Meena Silks",
+        tagline: "Hand-woven Kanchipuram silk, straight from the loom",
+        story:
+          "Meena has woven Kanchipuram silk sarees for 20 years, a craft she learnt from her mother. Every saree is woven by hand on a pit loom.",
+        craft: "Kanchipuram silk weaving",
+        specialties: ["Kanchipuram silk sarees", "Real zari borders", "Handloom cotton"],
+        price_text: "₹1,800 – ₹8,500",
+        years_text: "20 years of craft",
+      },
+      hi: {
+        shop_name: "मीना सिल्क्स",
+        tagline: "हाथ से बुना कांचीपुरम रेशम, सीधे करघे से",
+        story:
+          "मीना 20 सालों से कांचीपुरम रेशमी साड़ियाँ बुन रही हैं, यह हुनर उन्होंने अपनी माँ से सीखा। हर साड़ी गड्ढा करघे पर हाथ से बुनी जाती है।",
+        craft: "कांचीपुरम रेशम बुनाई",
+        specialties: ["कांचीपुरम रेशमी साड़ियाँ", "असली ज़री बॉर्डर", "हथकरघा सूती"],
+        price_text: "₹1,800 – ₹8,500",
+        years_text: "20 साल का अनुभव",
+      },
+      ta: {
+        shop_name: "மீனா சில்க்ஸ்",
+        tagline: "கையால் நெய்த காஞ்சிபுரம் பட்டு, நேரடியாகத் தறியிலிருந்து",
+        story:
+          "மீனா 20 ஆண்டுகளாகக் காஞ்சிபுரம் பட்டுப் புடவைகளை நெய்து வருகிறார்; இந்தக் கலையை அம்மாவிடம் கற்றார். ஒவ்வொரு புடவையும் குழித்தறியில் கையால் நெய்யப்படுகிறது.",
+        craft: "காஞ்சிபுரம் பட்டு நெசவு",
+        specialties: ["காஞ்சிபுரம் பட்டுப் புடவைகள்", "உண்மையான ஜரிகை பார்டர்", "கைத்தறி பருத்தி"],
+        price_text: "₹1,800 – ₹8,500",
+        years_text: "20 ஆண்டு அனுபவம்",
+      },
+    },
+  },
+  [DEMO.rameshId]: {
+    shop_name: "Khurja Clay Works",
+    owner_name: "Ramesh",
+    city: "Khurja",
+    craft: "Pottery",
+    years_of_experience: null,
+    story:
+      "Ramesh's family has made pottery in Khurja for three generations. Every pot is shaped by hand on the wheel, and his mother's mango pickle is a family recipe.",
+    specialties: ["Terracotta pots", "Homemade mango pickle"],
+    price_range: { min: 350, max: 1200 },
+    phone: null,
+    transcript:
+      "मेरा नाम रमेश है। मैं खुर्जा से हूँ और तीन पीढ़ियों से हमारा परिवार मिट्टी के बर्तन बनाता है। मेरी दुकान का नाम खुर्जा क्ले वर्क्स है।",
+    language: "hi-IN",
+    i18n: {
+      en: {
+        shop_name: "Khurja Clay Works",
+        tagline: "Three generations of potters from Khurja",
+        story:
+          "Ramesh's family has made pottery in Khurja for three generations. Every pot is shaped by hand on the wheel, and his mother's mango pickle is a family recipe.",
+        craft: "Pottery",
+        specialties: ["Terracotta pots", "Homemade mango pickle"],
+        price_text: "₹350 – ₹1,200",
+        years_text: null,
+      },
+      hi: {
+        shop_name: "खुर्जा क्ले वर्क्स",
+        tagline: "खुर्जा के कुम्हारों की तीन पीढ़ियाँ",
+        story:
+          "रमेश का परिवार तीन पीढ़ियों से खुर्जा में मिट्टी के बर्तन बनाता है। हर बर्तन चाक पर हाथ से बनता है, और उनकी माँ का आम का अचार पारिवारिक रेसिपी है।",
+        craft: "मिट्टी के बर्तन",
+        specialties: ["टेराकोटा गमले", "घर का बना आम का अचार"],
+        price_text: "₹350 – ₹1,200",
+        years_text: null,
+      },
+      ta: {
+        shop_name: "குர்ஜா க்ளே வொர்க்ஸ்",
+        tagline: "குர்ஜாவின் மூன்று தலைமுறை மண்பாண்டக் கலைஞர்கள்",
+        story:
+          "ரமேஷின் குடும்பம் மூன்று தலைமுறைகளாகக் குர்ஜாவில் மண்பாண்டங்கள் செய்கிறது. ஒவ்வொரு பாண்டமும் சக்கரத்தில் கையால் வடிவமைக்கப்படுகிறது; அவரது அம்மாவின் மாங்காய் ஊறுகாய் குடும்பச் செய்முறை.",
+        craft: "மண்பாண்டம்",
+        specialties: ["டெரகோட்டா தொட்டிகள்", "வீட்டில் செய்த மாங்காய் ஊறுகாய்"],
+        price_text: "₹350 – ₹1,200",
+        years_text: null,
+      },
+    },
+  },
+};
+
 export type SeedTts = (text: string, lang: string, gender: "female" | "male") => Promise<Buffer | null>;
 
 export type SeedResult = { sellers: number; products: number; messages: number; introAudio: number };
@@ -192,7 +290,12 @@ export type SeedResult = { sellers: number; products: number; messages: number; 
 /** Plain rows for every demo table — shared by the Supabase seed and the in-memory store. */
 export function buildSeedRows(base = Date.now() - 1000 * 60 * 60 * 3) {
   const iso = (ms: number) => new Date(ms).toISOString();
-  const sellers: Seller[] = SELLERS.map((s) => ({ ...s, voice_intro_url: null, created_at: iso(base - 86_400_000) }));
+  const sellers: Seller[] = SELLERS.map((s) => ({
+    ...s,
+    voice_intro_url: null,
+    shop: SHOPS[s.id] ? { ...SHOPS[s.id], updated_at: iso(base) } : null,
+    created_at: iso(base - 86_400_000),
+  }));
   const products: Product[] = PRODUCTS.map((p, i) => ({
     ...p,
     status: "published",
@@ -269,7 +372,14 @@ export async function seedDemo(sb: SupabaseClient, opts: { tts?: SeedTts; log?: 
     }
   }
 
-  await must(sb.from("sellers").insert(rows.sellers), "insert sellers");
+  {
+    // The `shop` column comes from migration 0002 — if it hasn't been run yet, seed without it.
+    const { error } = await sb.from("sellers").insert(rows.sellers);
+    if (error && /shop/i.test(error.message)) {
+      log("⚠ sellers.shop column missing — run supabase/migrations/0002_shop_profile.sql for storefronts");
+      await must(sb.from("sellers").insert(rows.sellers.map((s) => ({ ...s, shop: undefined })).map((s) => { delete s.shop; return s; })), "insert sellers");
+    } else if (error) throw new Error(`insert sellers: ${error.message}`);
+  }
   log(`Inserted ${rows.sellers.length} sellers (${introAudio} with generated voice intros)`);
   await must(sb.from("products").insert(rows.products), "insert products");
   log(`Inserted ${rows.products.length} products`);

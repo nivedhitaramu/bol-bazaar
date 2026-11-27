@@ -2,6 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { ConfigError } from "./supabase/server";
 import { getStore } from "./store";
+import { splitWav } from "./wavSplit";
 import { SarvamError, sarvamAvailable, speechToText, textToSpeech } from "./sarvam";
 import { translate, type TranslateOptions, type TranslateResult } from "./translate";
 
@@ -53,6 +54,35 @@ export async function voiceInput(
  * Never throws. Protected, glossary-consistent, back-checked translation (lib/translate);
  * falls back to the offline phrase dictionary when there's no key or Sarvam is down.
  */
+/**
+ * Like voiceInput, but for recordings up to ~60 s: WAV is split into ≤25 s chunks
+ * (Sarvam REST STT limit is 30 s), transcribed in parallel and joined in order.
+ */
+export async function voiceInputLong(
+  form: FormData,
+  lang: string
+): Promise<{ transcript: string; via: "sarvam" | "text"; detectedLanguage: string | null }> {
+  const text = form.get("text");
+  if (typeof text === "string" && text.trim()) return { transcript: text.trim(), via: "text", detectedLanguage: null };
+  const audio = form.get("audio");
+  if (!(audio instanceof Blob) || audio.size === 0) throw new ApiError(400, "no_input", "Send audio or text");
+  if (audio.size > 4_200_000) throw new ApiError(413, "audio_too_large", "Recording too long");
+  if (!sarvamAvailable()) throw new ApiError(503, "stt_unavailable", "Speech recognition unavailable");
+  const parts = splitWav(Buffer.from(await audio.arrayBuffer())) ?? [Buffer.from(await audio.arrayBuffer())];
+  try {
+    const results = await Promise.all(
+      parts.map((p) => speechToText(new Blob([new Uint8Array(p)], { type: audio.type || "audio/wav" }), { language: lang || "unknown", filename: "speech.wav" }))
+    );
+    const transcript = results.map((r) => r.transcript).filter(Boolean).join(" ").trim();
+    if (!transcript) throw new ApiError(422, "empty_transcript", "Could not hear anything");
+    return { transcript, via: "sarvam", detectedLanguage: results.find((r) => r.languageCode)?.languageCode ?? null };
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    console.warn("STT (long) failed:", (e as Error).message);
+    throw new ApiError(503, "stt_unavailable", "Speech recognition unavailable");
+  }
+}
+
 export async function translateSafe(
   text: string,
   source: string | null | undefined,

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, Sparkles, Store } from "lucide-react";
 import { useLang } from "./LangProvider";
 import { useToast } from "./Toast";
@@ -16,16 +16,7 @@ export function SellerGate({ children }: { children: (seller: LocalSeller, setSe
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  if (!ready) {
-    return (
-      <div className="grid min-h-[50dvh] place-items-center">
-        <Loader2 className="size-8 animate-spin text-maroon" />
-      </div>
-    );
-  }
-  if (seller) return <>{children(seller, setSeller)}</>;
-
-  const useDemo = async () => {
+  const pickDemoSeller = useCallback(async () => {
     setLoading(true);
     try {
       const s = await getJson<Seller>(`/api/sellers/${DEMO.meenaId}`);
@@ -35,7 +26,21 @@ export function SellerGate({ children }: { children: (seller: LocalSeller, setSe
     } finally {
       setLoading(false);
     }
-  };
+  }, [setSeller, t, toast]);
+
+  // Links from /demo carry ?demo=1 → become Meena automatically (one click for judges).
+  useEffect(() => {
+    if (ready && !seller && new URLSearchParams(window.location.search).get("demo") === "1") pickDemoSeller();
+  }, [ready, seller, pickDemoSeller]);
+
+  if (!ready || (loading && !seller)) {
+    return (
+      <div className="grid min-h-[50dvh] place-items-center">
+        <Loader2 className="size-8 animate-spin text-maroon" />
+      </div>
+    );
+  }
+  if (seller) return <>{children(seller, setSeller)}</>;
 
   return (
     <div className="mx-auto max-w-md px-4 py-12 text-center">
@@ -48,7 +53,7 @@ export function SellerGate({ children }: { children: (seller: LocalSeller, setSe
           <Link href="/seller/onboard" className="btn btn-primary text-lg">
             <Sparkles className="size-5" /> {t("startSelling")}
           </Link>
-          <button onClick={useDemo} disabled={loading} className="btn btn-ghost">
+          <button onClick={pickDemoSeller} disabled={loading} className="btn btn-ghost">
             {loading ? <Loader2 className="size-5 animate-spin" /> : null} {t("useDemoSeller")}
           </button>
         </div>

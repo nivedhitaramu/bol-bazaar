@@ -12,7 +12,41 @@ export type Seller = {
   gender: "female" | "male";
   voice_intro_url: string | null;
   voice_intro_transcript: string | null;
+  /** "Speak your shop online" profile (migration 0002). null/absent = not set up yet. */
+  shop?: ShopProfile | null;
   created_at: string;
+};
+
+/** Storefront copy in one language. */
+export type ShopText = {
+  shop_name: string;
+  tagline: string;
+  story: string;
+  craft: string;
+  specialties: string[];
+  price_text: string | null;
+  years_text: string | null;
+};
+
+/** What the seller SAID about her shop (null = not said). */
+export type ShopDraft = {
+  shop_name: string | null;
+  owner_name: string | null;
+  city: string | null;
+  craft: string | null;
+  years_of_experience: number | null;
+  story: string | null;
+  specialties: string[] | null;
+  price_range: { min: number | null; max: number | null } | null;
+  phone: string | null;
+};
+
+export type ShopProfile = ShopDraft & {
+  transcript: string | null;
+  language: string;
+  /** Storefront text per short language code (en, hi, ta, + seller's language). */
+  i18n: Record<string, ShopText>;
+  updated_at: string;
 };
 
 export type Product = {

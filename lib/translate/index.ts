@@ -19,7 +19,7 @@ import "server-only";
 import { identifyLanguage, MODEL_LANGS, sarvamAvailable, transliterate, translateText, type TranslateModel } from "../sarvam";
 import { translateOffline } from "../dictionary";
 import { missingNumbers } from "../numbers";
-import { applyGlossary, guessLanguageFromScript, mask, restore } from "./protect";
+import { applyGlossary, guessLanguageFromScript, mask, missingNames, restore } from "./protect";
 
 export type TranslateResult = {
   text: string;
@@ -129,16 +129,17 @@ export async function translate(text: string, source: string | null | undefined,
   const supports = (m: TranslateModel) => MODEL_LANGS[m].has(src) && MODEL_LANGS[m].has(target);
   const attempts = (
     [
-      { model: "sarvam-translate:v1", numbers: "digits" },
-      { model: "mayura:v1", numbers: "digits" },
-      { model: "sarvam-translate:v1", numbers: "tokens" },
+      // Natural grammar first (known names verified afterwards), strict tokens as the last resort.
+      { model: "sarvam-translate:v1", numbers: "digits", knownNames: "verify" },
+      { model: "mayura:v1", numbers: "digits", knownNames: "verify" },
+      { model: "sarvam-translate:v1", numbers: "tokens", knownNames: "token" },
     ] as const
   ).filter((a) => supports(a.model));
   const speakerGender = opts.gender === "male" ? "Male" : opts.gender === "female" ? "Female" : undefined;
 
   let best: TranslateResult | null = null;
-  for (const { model, numbers } of attempts) {
-    const masked = mask(working, opts.names ?? [], { numbers });
+  for (const { model, numbers, knownNames } of attempts) {
+    const masked = mask(working, opts.names ?? [], { numbers, knownNames });
     let raw: { value: string; hit: boolean };
     try {
       raw = await cached(`mt|${model}|${src}|${target}|${speakerGender ?? ""}|${masked.text}`, () =>
@@ -151,6 +152,7 @@ export async function translate(text: string, source: string | null | undefined,
     const restored = restore(raw.value, masked.slots, target);
     const finalText = applyGlossary(working, restored.text, target).trim();
     const missing = missingNumbers(working, finalText);
+    const lostNames = missingNames(working, finalText, target);
     const result: TranslateResult = {
       text: finalText,
       ok: true,
@@ -160,7 +162,7 @@ export async function translate(text: string, source: string | null | undefined,
       model,
       cached: raw.hit,
     };
-    if (!result.flagged && restored.lost.length === 0) return result;
+    if (!result.flagged && restored.lost.length === 0 && lostNames.length === 0) return result;
     if (!best || result.missing.length < best.missing.length) best = result; // keep the least-bad, flagged
   }
   if (best) return best;
