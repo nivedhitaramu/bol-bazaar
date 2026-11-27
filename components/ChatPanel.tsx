@@ -44,17 +44,22 @@ export function ChatPanel({
   soundEnabled,
   compact = false,
   panelId,
+  onMyMessages,
 }: {
   conversationId: string;
   side: "buyer" | "seller";
   soundEnabled: boolean;
   compact?: boolean;
   panelId: string;
+  /** How many messages this side has sent (used for "Save my chats" after the first one). */
+  onMyMessages?: (n: number) => void;
 }) {
   const { toast } = useToast();
   const [data, setData] = useState<ConvData | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const myCount = messages.filter((m) => m.sender === side).length;
+  useEffect(() => onMyMessages?.(myCount), [myCount, onMyMessages]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [myState, setMyState] = useState<PeerState>("idle");
   const [peerState, setPeerState] = useState<PeerState>("idle");

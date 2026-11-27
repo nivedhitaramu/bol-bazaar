@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Mic, Store, ShoppingBag } from "lucide-react";
+import { Mic, Store, ShoppingBag, MessageCircle } from "lucide-react";
 import { LanguagePicker } from "./LanguagePicker";
 import { useLang } from "./LangProvider";
 
@@ -31,11 +31,17 @@ export function AppHeader({ back }: { back?: React.ReactNode }) {
           <Link href="/shop" className="hidden min-h-14 items-center gap-1.5 rounded-full px-3 font-semibold hover:bg-sand sm:flex">
             <ShoppingBag className="size-4 text-maroon" /> {t("shop")}
           </Link>
+          <Link href="/buyer" className="hidden min-h-14 items-center gap-1.5 rounded-full px-3 font-semibold hover:bg-sand sm:flex">
+            <MessageCircle className="size-4 text-maroon" /> {t("myChats")}
+          </Link>
           <Link href="/seller" className="hidden min-h-14 items-center gap-1.5 rounded-full px-3 font-semibold hover:bg-sand sm:flex">
             <Store className="size-4 text-maroon" /> {t("myShop")}
           </Link>
           <Link href="/shop" className="grid size-14 place-items-center rounded-full hover:bg-sand sm:hidden" aria-label={t("shop")}>
             <ShoppingBag className="size-5 text-maroon" />
+          </Link>
+          <Link href="/buyer" className="grid size-14 place-items-center rounded-full hover:bg-sand sm:hidden" aria-label={t("myChats")}>
+            <MessageCircle className="size-5 text-maroon" />
           </Link>
           <Link href="/seller" className="grid size-14 place-items-center rounded-full hover:bg-sand sm:hidden" aria-label={t("myShop")}>
             <Store className="size-5 text-maroon" />

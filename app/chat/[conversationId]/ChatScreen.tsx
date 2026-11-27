@@ -8,6 +8,9 @@ import { Logo } from "@/components/AppHeader";
 import { useLang } from "@/components/LangProvider";
 import { isAudioUnlocked } from "@/lib/client/player";
 import { markRead } from "@/lib/client/unread";
+import { useBuyer } from "@/lib/client/useBuyer";
+import { SaveBuyerLink } from "@/components/SaveBuyerLink";
+import { MessageCircleHeart, X } from "lucide-react";
 
 export function ChatScreen({ conversationId, side }: { conversationId: string; side: "buyer" | "seller" }) {
   const [sound, setSound] = useState(false);
@@ -21,6 +24,12 @@ export function ChatScreen({ conversationId, side }: { conversationId: string; s
   }, [side, conversationId]);
   const router = useRouter();
   const { t } = useLang();
+  // "Save my chats" — offered to an identified buyer once they've sent a message.
+  const { buyer } = useBuyer();
+  const [mine, setMine] = useState(0);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveDismissed, setSaveDismissed] = useState(false);
+  const offerSave = side === "buyer" && buyer && mine > 0 && !saveDismissed;
   return (
     <div className="mx-auto flex h-[calc(100dvh-var(--banner-h,0px))] max-w-2xl flex-col" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <SoundGate enabled={sound} onEnable={() => setSound(true)} />
@@ -37,8 +46,21 @@ export function ChatScreen({ conversationId, side }: { conversationId: string; s
           {side === "seller" ? t("sellerLabel") : t("buyerLabel")}
         </span>
       </div>
+      {offerSave &&
+        (saveOpen ? (
+          <div className="relative max-h-[50dvh] overflow-y-auto border-b border-sand bg-cream p-2">
+            <button onClick={() => setSaveDismissed(true)} className="absolute right-3 top-2 z-10 grid size-14 place-items-center text-white" aria-label="Close">
+              <X className="size-5" />
+            </button>
+            <SaveBuyerLink buyer={buyer} compact />
+          </div>
+        ) : (
+          <button onClick={() => setSaveOpen(true)} className="flex min-h-14 items-center justify-center gap-2 border-b border-leaf/30 bg-leaf/10 px-3 font-bold text-leaf">
+            <MessageCircleHeart className="size-5" /> {t("saveChats")}
+          </button>
+        ))}
       <div className="min-h-0 flex-1">
-        <ChatPanel conversationId={conversationId} side={side} soundEnabled={sound} panelId={`${side}-main`} />
+        <ChatPanel conversationId={conversationId} side={side} soundEnabled={sound} panelId={`${side}-main`} onMyMessages={setMine} />
       </div>
     </div>
   );

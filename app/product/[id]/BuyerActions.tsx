@@ -5,7 +5,12 @@ import { Check, Loader2, MessageCircle, Minus, Plus, ShoppingBag, X } from "luci
 import { useLang } from "@/components/LangProvider";
 import { useToast } from "@/components/Toast";
 import { postJson } from "@/lib/client/api";
-import { readBuyerName, saveBuyerName } from "@/lib/client/useSeller";
+import { readBuyerName } from "@/lib/client/useSeller";
+import { ensureBuyer, useBuyer } from "@/lib/client/useBuyer";
+import { SaveBuyerLink } from "@/components/SaveBuyerLink";
+import { FieldMic } from "@/components/FieldMic";
+import { SpeakLangPicker } from "@/components/LanguagePicker";
+import { langInfo, normalizeLang } from "@/lib/languages";
 import { unlockAudio } from "@/lib/client/player";
 import { formatINR } from "@/lib/types";
 import { Portal } from "@/components/Portal";
@@ -19,25 +24,31 @@ export function BuyerActions({ productId, price, maxQty }: { productId: string; 
   const [qty, setQty] = useState(1);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ conversationId: string } | null>(null);
+  // Lightweight buyer identity: name + language asked once, then remembered on this device.
+  const { buyer, setBuyer } = useBuyer();
+  const [buyerLang, setBuyerLang] = useState<string>(lang);
 
   useEffect(() => setName(readBuyerName()), []);
+  useEffect(() => setBuyerLang(lang), [lang]);
 
   const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    const n = name.trim();
+    const n = buyer?.name ?? name.trim();
     if (!n) return;
-    saveBuyerName(n);
     setBusy(true);
     try {
+      // Get (or create once) the buyer identity. If that fails (e.g. migration 0004 not run), keep going without it.
+      const me = buyer ?? (await ensureBuyer(n, normalizeLang(buyerLang)).catch(() => null));
+      const speak = me?.language ?? normalizeLang(buyerLang);
+      const ident = { buyerName: me?.name ?? n, buyerLanguage: speak, buyerToken: me?.token };
       if (mode === "talk") {
         await unlockAudio(); // this tap counts as the gesture that enables auto-play in chat
-        const r = await postJson<{ id: string }>("/api/conversations", { productId, buyerName: n, buyerLanguage: lang });
+        const r = await postJson<{ id: string }>("/api/conversations", { productId, ...ident });
         router.push(`/chat/${r.id}?as=buyer`);
       } else {
         const r = await postJson<{ orderId: string; conversationId: string }>("/api/orders", {
           productId,
-          buyerName: n,
-          buyerLanguage: lang,
+          ...ident,
           quantity: qty,
         });
         setDone({ conversationId: r.conversationId });
@@ -104,20 +115,44 @@ export function BuyerActions({ productId, price, maxQty }: { productId: string; 
                   >
                     <MessageCircle className="size-5" /> {t("talkToSeller")}
                   </button>
+                  {buyer && (
+                    <div className="mt-4 text-left">
+                      <SaveBuyerLink buyer={buyer} compact />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <form onSubmit={submit} className="grid gap-4">
-                  <label className="grid gap-1">
-                    <span className="text-sm font-bold text-muted">{t("yourName")}</span>
-                    <input
-                      className="input text-lg"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      autoFocus
-                      required
-                      autoComplete="given-name"
-                    />
-                  </label>
+                  {buyer ? (
+                    <p className="flex flex-wrap items-center gap-2 rounded-2xl bg-white px-3 py-2 font-semibold">
+                      <span className="grid size-10 place-items-center rounded-full bg-leaf font-bold text-white">{buyer.name.slice(0, 1)}</span>
+                      {buyer.name} · {langInfo(buyer.language).native}
+                      <button type="button" onClick={() => setBuyer(null)} className="ml-auto min-h-14 px-2 text-sm text-muted underline">
+                        ✕
+                      </button>
+                    </p>
+                  ) : (
+                    <>
+                      <label className="grid gap-1">
+                        <span className="text-sm font-bold text-muted">{t("yourName")}</span>
+                        <div className="flex gap-2">
+                          <input
+                            className="input flex-1 text-lg"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            autoFocus
+                            required
+                            autoComplete="given-name"
+                          />
+                          <FieldMic lang={buyerLang} label={t("yourName")} onText={(s) => setName(s.replace(/[.।!?]+$/u, "").trim())} />
+                        </div>
+                      </label>
+                      <div className="grid gap-1">
+                        <span className="text-sm font-bold text-muted">{t("yourLanguageQ")}</span>
+                        <SpeakLangPicker value={buyerLang} onChange={setBuyerLang} />
+                      </div>
+                    </>
+                  )}
                   {mode === "buy" && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-muted">{t("quantity")}</span>
@@ -142,7 +177,7 @@ export function BuyerActions({ productId, price, maxQty }: { productId: string; 
                       </div>
                     </div>
                   )}
-                  <button type="submit" disabled={busy || !name.trim()} className="btn btn-primary text-lg">
+                  <button type="submit" disabled={busy || !(buyer?.name || name.trim())} className="btn btn-primary text-lg">
                     {busy ? (
                       <Loader2 className="size-5 animate-spin" />
                     ) : mode === "talk" ? (
