@@ -220,7 +220,7 @@ cp .env.example .env.local     # Windows PowerShell: Copy-Item .env.example .env
 
 ### 3. Database
 
-In the Supabase dashboard, open **SQL Editor**, paste the contents of [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), and click **Run**. Then do the same for [`0002_shop_profile.sql`](supabase/migrations/0002_shop_profile.sql), which adds the storefront column used by "Speak your shop online".
+In the Supabase dashboard, open **SQL Editor**, paste the contents of [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), and click **Run**. Then do the same for [`0002_shop_profile.sql`](supabase/migrations/0002_shop_profile.sql), which adds the storefront column used by "Speak your shop online". Then run [`0003_seller_auth.sql`](supabase/migrations/0003_seller_auth.sql), which adds the private `seller_auth` table for seller login (link and PIN). Without it, login shows a clear "run migration 0003" message, and everything else keeps working.
 (Or use `supabase db push` with the Supabase CLI.) This creates the tables, RLS policies, the Realtime publication for `messages` and `orders`, and the public Storage buckets.
 
 ### 4. Seed and run (Supabase mode)
@@ -265,9 +265,15 @@ All API keys stay server-side in Route Handlers. Only the Supabase URL and the p
 
 ## 🔒 Security notes (hackathon scope)
 
-- There are no user accounts. A seller's identity is kept in `localStorage` on their phone, which is fine for a demo but not production auth.
-- RLS allows public **reads** only. All writes go through server routes using the secret key.
-- `.env.local` is git-ignored. `.env.example` contains no secrets.
+**Seller login is prototype-level, not production auth.** There's no SMS/OTP, no accounts, and no rate limiting beyond the PIN lockout. It exists so a seller can get back into her shop on another phone:
+
+- **Private seller link** (`/seller/login?k=…`): created after shop setup (or from the dashboard). She sends it to her own WhatsApp. It's a random 144-bit key; only its SHA-256 is stored. Anyone with the link can open the shop, so it must be kept private, and the UI says so in her language. Creating a new link invalidates the old one.
+- **4-digit PIN** (tapped or spoken in any language): used with "I already have a shop" (pick the shop by name, then enter the PIN). It's stored only as a salted scrypt hash. 5 wrong tries lock the shop for 5 minutes.
+- **Session:** after logging in, the device keeps a 30-day HMAC-signed token (secret: `AUTH_SECRET`, else derived from the Supabase secret key, else random per process in keyless mode). Setting or rotating the link and PIN requires that token. The first link for a new shop can be claimed without one, right after onboarding.
+- **Where secrets live:** in their own `seller_auth` table (migration `0003`) with RLS on and **no** policies, so only the server can read it. The `sellers` table stays publicly readable for storefronts.
+- **Not protected yet:** other seller actions (listings, orders, replies) still trust the seller id sent by the browser. A real product needs proper auth (phone OTP) and server-side authorization on every write.
+- **Demo sellers** (Meena, Ramesh) are one tap, with no PIN, on purpose.
+- **Other data:** RLS allows public **reads** only, and all writes go through server routes using the secret key. `.env.local` is git-ignored, and `.env.example` contains no secrets.
 
 ## 🗣️ Built by voice with Wispr Flow
 

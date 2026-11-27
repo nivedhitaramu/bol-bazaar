@@ -50,7 +50,15 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
         title={t("appLanguage")}
       >
         <Languages className="size-4 text-maroon" />
-        {langInfo(lang).native}
+        {compact ? (
+          <>
+            {/* phones: short mark ("En", "த", "हि") so the header never overflows 375px */}
+            <span className="sm:hidden">{langInfo(lang).flagChar}</span>
+            <span className="hidden sm:inline">{langInfo(lang).native}</span>
+          </>
+        ) : (
+          langInfo(lang).native
+        )}
       </button>
       <Popover open={open} onClose={() => setOpen(false)} anchorRef={btn} title={t("appLanguage")} icon={<Languages className="size-5" />}>
         <p className="-mt-2 mb-3 text-sm text-muted">{t("appLanguageHint")}</p>

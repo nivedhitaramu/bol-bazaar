@@ -1,9 +1,9 @@
 # Bol Bazaar — Progress
 
-_Last updated: 2026-11-27_
+_Last updated: 2026-11-28_
 
 ## Status
-Feature-complete for submission. `npm run lint`, `npm run build`, `npm test` (31 tests) pass;
+Feature-complete for submission. `npm run lint`, `npm run build`, `npm test` (36 tests) pass;
 `docker compose up --build` builds and runs keyless; every page passes a 375px audit
 (no overflow, tap targets ≥ 56px, text ≥ 12px).
 
@@ -21,12 +21,18 @@ Feature-complete for submission. `npm run lint`, `npm run build`, `npm test` (31
 - **When things go wrong:** read-back + spoken yes before sending/saving (chat numbers, listings,
   orders), one-word clarification for sound-alikes, undo ("illa, thappu"), quiet prompt, two
   strikes → text box, "Translation pending" + retry, hidden `/demo` "simulate noise" (Shift+N).
+- **Seller login (prototype):** private link (`/seller/login?k=…`, sent to her own WhatsApp) and a
+  4-digit PIN (tapped or spoken) for "I already have a shop"; 5 wrong tries lock it for 5 minutes;
+  Log out on the dashboard; demo sellers stay one-tap. Secrets live in `seller_auth` (migration 0003).
 - **Polish:** separate app language vs. "I speak" language, portal-based overlays, mobile sizing,
   `/demo` story strip, README.
 
 ## Open / manual
-- **Supabase:** run `supabase/migrations/0002_shop_profile.sql` in the SQL Editor, then `npm run seed`
-  (needed for storefronts in Supabase mode; keyless/Docker mode doesn't need it).
+- **Supabase (run in the SQL Editor, in order):** `supabase/migrations/0002_shop_profile.sql`, then
+  `supabase/migrations/0003_seller_auth.sql`, then `npm run seed`. 0002 = storefronts, 0003 = seller
+  login. Keyless/Docker mode needs none of this.
+- **Auth is prototype-level:** only the link/PIN flow uses signed sessions; other seller writes
+  still trust the browser's seller id (see README security notes).
 - **Real-microphone check:** recovery answers ("aamaa", "haan") and the keyless browser-STT
   hands-free path were verified with typed/tapped input and a fake mic, not on a phone.
 - **Known limitation:** wrong-word translations (e.g. Sarvam rendered "brother's wedding" as
