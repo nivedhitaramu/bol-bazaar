@@ -50,6 +50,7 @@ Bol Bazaar removes both.
 
 - **🏪 Speak your shop online** (`/seller/shop-setup`): one mic, up to 60 seconds. *"I am Meena, I weave Kanchipuram silk for 20 years, my sarees start at 5000…"* turns into a storefront in Tamil, Hindi and English. The screen walks through **Listening → Understanding → Writing in 3 languages → Your shop is live!** and then reads back in her language: *"Your shop is live. Share it on WhatsApp?"* Only what she said is extracted; anything missing is highlighted in yellow so she can fill it by voice.
 
+- **🗣️ Ask your shop**: a spoken daily summary for sellers who can't read. It sits on the dashboard as a big mic labelled "Ask" in her language. She can ask *"Indru enna aachu?"*, *"How many orders?"*, *"Who is waiting for my reply?"* or *"What did Priya ask?"*. An LLM works out the intent (rules are used without keys), and the answer is built from her real data. She hears it in her language and sees it as large text: *"Today you got 3 enquiries and 1 order worth ₹8,500. Priya is waiting for your reply."* Numbers and names are filled in from fixed templates with correct singular/plural, never machine-translated.
 - **👂 Hands-free mode**: available in chat, `/demo` and `/seller/new`. Turn it on and just talk, with no tapping.
   - **Detecting speech:** Web Audio energy-based detection with an adaptive noise floor. About 1.2 s of silence ends an utterance, and it goes straight to `/api/relay`.
   - **Not hearing itself:** listening pauses while the other side's audio plays, plus a 0.6 s echo tail.

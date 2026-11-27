@@ -5,6 +5,7 @@ import { Check, Eye, EyeOff, Loader2, LogOut, MessageCircle, Mic, Package, Plus,
 import { useLang } from "@/components/LangProvider";
 import { useToast } from "@/components/Toast";
 import { OrderVoiceCommand } from "@/components/OrderVoiceCommand";
+import { AskShop } from "@/components/AskShop";
 import { getJson, postJson } from "@/lib/client/api";
 import type { LocalSeller } from "@/lib/client/useSeller";
 import { realtimeAvailable, subscribeAllMessages, subscribeOrders } from "@/lib/client/realtime";
@@ -194,6 +195,9 @@ export function Dashboard({
           <LogOut className="size-5 text-muted" />
         </button>
       </div>
+
+      {/* Ask your shop — spoken summary for sellers who can't read */}
+      <AskShop sellerId={seller.id} speakLang={sellerLang} />
 
       {/* Speak your shop online */}
       <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto]">
