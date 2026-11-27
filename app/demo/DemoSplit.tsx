@@ -40,7 +40,7 @@ export function DemoSplit() {
           <span className="rounded-lg bg-saffron px-2 py-0.5 text-white">हिन्दी</span>
           <span className="hidden text-base font-semibold text-muted md:inline">— live cross-language chat</span>
         </p>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <Link href="/seller/shop-setup?demo=1" className="btn btn-saffron min-h-11 px-3 text-sm">
             <Mic className="size-4" /> Speak your shop
           </Link>

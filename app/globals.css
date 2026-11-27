@@ -124,3 +124,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* Grid items default to min-width:auto, so one long unbroken line (a chat preview, a row of
+   buttons) widens the whole column past a 375px screen. Let tracks shrink; text truncates/wraps. */
+.grid > * {
+  min-width: 0;
+}
