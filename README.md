@@ -111,6 +111,27 @@ flowchart LR
 
 **Grounded extraction.** Prompts in `lib/llm.ts` say *"extract only what was said, null if not said"*. Output is parsed with **zod**, and `lib/numbers.ts` acts as a deterministic exactness guard: if the transcript contains one explicit currency amount, that number wins over the LLM's output.
 
+## 🎯 Translation accuracy
+
+A wrong price or name breaks trust, so every message goes through `lib/translate/` before the other person hears it:
+
+| Step | What it does |
+|---|---|
+| **Source language** | Uses the language STT detected for that utterance. Typed text is identified by its script, and Latin text goes to Sarvam `/text-lid`, which tells English apart from romanized Tamil or Hindi. |
+| **Romanized → native** | "Order confirm pannu, naalaikku ship pannuven" is turned into Tamil script with Sarvam `/transliterate` before translating. Measured: sarvam-translate garbled the romanized form but translated the native form correctly. |
+| **Protect** | Names (Meena, Priya, Kanchipuram, Lucknow…) are replaced with `⟦n⟧` tokens and restored **in the reader's script** (Lucknow becomes लखनऊ or லக்னோ). Spoken numbers become **exact digits** before translation ("எட்டாயிரத்து ஐநூறு" becomes 8,500), and digits and phone numbers pass through unchanged. |
+| **Model** | **sarvam-translate:v1**: all 22 languages and the most accurate in our tests, with a respectful register (आप / நீங்கள் forms). **mayura:v1** is the fallback. Mayura's colloquial modes leaked English ("saree eight thousand five hundred rupees") and once flipped "I have" to "I need", so they aren't used. |
+| **Glossary** | saree, zari, handloom, terracotta, pickle, silk, order, delivery and COD stay consistent ("आदेश" becomes "ऑर्डर", "saree" becomes "साड़ी"). The glossary is applied *after* translation, because tokenizing common nouns broke the grammar. |
+| **Back-check** | Every number in the source must appear in the output, as digits or words. If one is missing, the pipeline retries with the other model and then with full token masking. If it's still missing, the message is delivered with a **⚠ check** badge and the original shown underneath. A wrong number is never sent silently. |
+| **Cache** | Identical (masked) text is never translated twice. A repeat takes about 2 ms instead of about 1.5 s. |
+
+Why digits rather than `⟦n⟧` tokens for numbers? We measured it on the live API. "இந்த புடவை ⟦1⟧ ரூபாய், ⟦2⟧ இருக்கு" came back as "…⟦2⟧ **रुपये**": the quantity 2 turned into "2 rupees". With digits, the model kept both the value and the meaning: "इस साड़ी की कीमत 8,500 रुपये है और इसमें 2 हैं।" Tokens remain the third retry strategy.
+
+```bash
+npm test                  # 12 unit tests for protection, restore, back-check, glossary, dictionary (offline)
+npm run translate:demo    # runs the 3 accuracy sentences through the live pipeline (or --offline)
+```
+
 ## 🧰 Tech stack
 
 - **Next.js 15** (App Router, Route Handlers), **TypeScript**, **Tailwind CSS v4**
@@ -124,7 +145,9 @@ app/            routes: /, /shop, /shop/[sellerId], /product/[id], /seller, /sel
 components/     MicButton, VoiceCapture, ChatPanel, HearTheMaker, OrderVoiceCommand, …
 lib/sarvam.ts   all Sarvam calls: typed, timeouts, retries (429/5xx), speaker fallback
 lib/llm.ts      extraction / listing / edit / order-intent prompts + zod + heuristic fallbacks
-lib/numbers.ts  Indian number parsing (lakh, hazaar, ஆயிரம், native digits) + exactness guard
+lib/numbers.ts  Indian number parsing (lakh, hazaar, எட்டாயிரத்து, native digits), number spans, back-check
+lib/translate/  accuracy pipeline: detect → transliterate → protect → translate → restore → glossary → back-check → cache
+tests/          node:test unit tests (npm test)
 lib/supabase/   browser client (publishable key) + server admin client (secret key)
 lib/client/     recorder hook, WAV encoder, audio player/queue, realtime registry
 supabase/migrations/0001_init.sql   schema, RLS, Realtime publication, Storage buckets

@@ -9,6 +9,7 @@ import { getJson, postVoice, SwitchedToBrowserStt } from "@/lib/client/api";
 import { play, speak } from "@/lib/client/player";
 import { type PeerState, subscribeConversation, subscribeOrders } from "@/lib/client/realtime";
 import { translator } from "@/lib/i18n";
+import { missingNumbers } from "@/lib/numbers";
 import { langInfo, normalizeLang } from "@/lib/languages";
 import { formatINR, listingFor, type Conversation, type Message, type Order, type Product, type Seller } from "@/lib/types";
 
@@ -265,6 +266,9 @@ export function ChatPanel({
           const small = mine ? m.translated_text : m.original_text;
           const smallLang = mine ? m.translated_language : m.original_language;
           const untranslated = m.translated_text == null && m.original_language !== m.translated_language;
+          // Back-check: a number in the original that isn't in the translation → never show it silently.
+          const lostNumbers = m.translated_text ? missingNumbers(m.original_text, m.translated_text) : [];
+          const needsCheck = lostNumbers.length > 0;
           const playing = playingId === m.id;
           return (
             <div key={m.id} className={`msg-in flex ${mine ? "justify-end" : "justify-start"}`}>
@@ -274,6 +278,18 @@ export function ChatPanel({
                 } ${playing ? "ring-4 ring-turmeric/70" : ""}`}
               >
                 <p className={`${compact ? "text-base" : "text-lg"} font-semibold leading-snug`}>{big}</p>
+                {needsCheck && (
+                  <div
+                    role="alert"
+                    className={`mt-1.5 rounded-xl px-2.5 py-1.5 text-sm ${mine ? "bg-white/15 text-white" : "bg-turmeric-soft text-ink"}`}
+                  >
+                    <span className="mr-1.5 inline-flex items-center rounded-full bg-saffron px-2 py-0.5 text-[11px] font-extrabold text-white">
+                      ⚠ {t("checkTranslation")}
+                    </span>
+                    <span className="text-[11px] font-bold uppercase tracking-wide opacity-70">{t("original")}:</span>{" "}
+                    <span className="font-semibold">{m.original_text}</span>
+                  </div>
+                )}
                 {untranslated && (
                   <span
                     className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${mine ? "bg-white/15 text-white/80" : "bg-turmeric-soft text-maroon"}`}

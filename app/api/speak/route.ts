@@ -16,10 +16,10 @@ const Body = z.object({
 export async function POST(req: NextRequest) {
   try {
     const b = Body.parse(await req.json());
-    const tr = b.from && b.from !== b.to ? await translateSafe(b.text, b.from, b.to, "formal") : { text: b.text, ok: true };
+    const tr = b.from && b.from !== b.to ? await translateSafe(b.text, b.from, b.to, { gender: b.gender }) : { text: b.text, ok: true, flagged: false };
     // Untranslated text is voiced in its own language, not the target's.
     const audio = b.audio ? await ttsSafe(tr.text, tr.ok ? b.to : (b.from ?? b.to), b.gender) : null;
-    return ok({ text: tr.text, translated: tr.ok, audio: audio?.base64 ?? null, mime: audio?.mime ?? null });
+    return ok({ text: tr.text, translated: tr.ok, flagged: tr.flagged, audio: audio?.base64 ?? null, mime: audio?.mime ?? null });
   } catch (e) {
     return fail(e);
   }

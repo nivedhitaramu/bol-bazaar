@@ -274,7 +274,7 @@ export async function seedDemo(sb: SupabaseClient, opts: { tts?: SeedTts; log?: 
   await must(sb.from("products").insert(rows.products), "insert products");
   log(`Inserted ${rows.products.length} products`);
   await must(sb.from("conversations").insert(rows.conversation), "insert conversation");
-  await must(sb.from("messages").insert(rows.messages.map((m) => ({ ...m, id: undefined }))), "insert messages");
+  await must(sb.from("messages").insert(rows.messages), "insert messages"); // fixed demo UUIDs
   log(`Inserted ${rows.messages.length} messages`);
   await must(sb.from("orders").insert(rows.order), "insert order");
   log("Inserted 1 order (status: placed)");

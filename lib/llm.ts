@@ -3,7 +3,8 @@
  * deterministic fallback so the app keeps working without Sarvam.
  */
 import { z } from "zod";
-import { chatCompletion, parseJsonObject, sarvamAvailable, translateText } from "./sarvam";
+import { chatCompletion, parseJsonObject, sarvamAvailable } from "./sarvam";
+import { translate } from "./translate";
 import { findCurrencyAmounts, findPriceNear, findQuantityNear, mentionsPrice, mentionsQuantity, normalizeDigits } from "./numbers";
 import { CATEGORIES, langInfo, type LangCode, shortOf } from "./languages";
 import type { Listing, ListingText, Order, OrderStatus, ProductDraft } from "./types";
@@ -234,9 +235,9 @@ async function templateListing(
 export async function translateListing(en: ListingText, target: string): Promise<ListingText> {
   if (!sarvamAvailable()) return en;
   const [title, description, tags] = await Promise.all([
-    translateText(en.title, "en-IN", target),
-    translateText(en.description.replace(/\n/g, " || "), "en-IN", target),
-    translateText(en.tags.join(", "), "en-IN", target),
+    translate(en.title, "en-IN", target).then((r) => r.text),
+    translate(en.description.replace(/\n/g, " || "), "en-IN", target).then((r) => r.text),
+    translate(en.tags.join(", "), "en-IN", target).then((r) => r.text),
   ]);
   return {
     title,

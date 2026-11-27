@@ -35,12 +35,23 @@ export async function postMessage(opts: {
   sender: "buyer" | "seller";
   text: string;
   translated?: string; // pre-translated (templates)
-}): Promise<{ message: Message; timings: Timings; translatedOk: boolean; ttsOk: boolean }> {
+  /** Language STT detected for this utterance (null/"unknown" → detected from the text). */
+  sourceLang?: string | null;
+}): Promise<{ message: Message; timings: Timings; translatedOk: boolean; ttsOk: boolean; flagged: boolean; missing: number[] }> {
   const { conv, sender, text } = opts;
-  const { from, to } = sideLanguages(conv, sender);
+  const sides = sideLanguages(conv, sender);
+  const to = sides.to;
 
   let t0 = Date.now();
-  const tr = opts.translated != null ? { text: opts.translated, ok: true } : await translateSafe(text, from, to, "formal");
+  const tr =
+    opts.translated != null
+      ? { text: opts.translated, ok: true, flagged: false, missing: [] as number[], sourceLang: sides.from }
+      : await translateSafe(text, opts.sourceLang && opts.sourceLang !== "unknown" ? opts.sourceLang : sides.from, to, {
+          gender: sender === "seller" ? conv.seller.gender : undefined,
+          names: [conv.seller.name, conv.buyer_name, conv.seller.city ?? "", conv.seller.state ?? ""],
+        });
+  // The language the words were ACTUALLY spoken/typed in (STT- or script-detected), not the profile's.
+  const from = tr.sourceLang || sides.from;
   const translate_ms = Date.now() - t0;
 
   t0 = Date.now();
@@ -69,7 +80,14 @@ export async function postMessage(opts: {
   });
   const store_ms = Date.now() - t0;
 
-  return { message, timings: { translate_ms, tts_ms, store_ms }, translatedOk: tr.ok, ttsOk: Boolean(audio) };
+  return {
+    message,
+    timings: { translate_ms, tts_ms, store_ms },
+    translatedOk: tr.ok,
+    ttsOk: Boolean(audio),
+    flagged: tr.flagged,
+    missing: tr.missing,
+  };
 }
 
 /** Find-or-create a conversation for (product, buyer name, buyer language). */

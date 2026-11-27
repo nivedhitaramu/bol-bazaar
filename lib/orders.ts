@@ -56,7 +56,7 @@ export async function setOrderStatus(
     if (TEMPLATE_LANGS.has(shortOf(normalizeLang(buyerLang)))) {
       translated = statusUpdateText(it, titleIn(order.product.listing, order.product.name, buyerLang), normalizeLang(buyerLang));
     } else {
-      translated = (await translateSafe(original, sellerLang, buyerLang, "formal")).text;
+      translated = (await translateSafe(original, sellerLang, buyerLang, { gender: conv.seller.gender, names: [conv.seller.name, conv.buyer_name, order.product.name] })).text;
     }
     message = (await postMessage({ conv, sender: "seller", text: original, translated })).message;
   }

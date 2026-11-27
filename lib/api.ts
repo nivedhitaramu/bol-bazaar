@@ -2,8 +2,8 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { ConfigError } from "./supabase/server";
 import { getStore } from "./store";
-import { translateOffline } from "./dictionary";
-import { SarvamError, sarvamAvailable, speechToText, textToSpeech, translateText, type TranslateMode } from "./sarvam";
+import { SarvamError, sarvamAvailable, speechToText, textToSpeech } from "./sarvam";
+import { translate, type TranslateOptions, type TranslateResult } from "./translate";
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message?: string) {
@@ -49,23 +49,22 @@ export async function voiceInput(
   }
 }
 
+/**
+ * Never throws. Protected, glossary-consistent, back-checked translation (lib/translate);
+ * falls back to the offline phrase dictionary when there's no key or Sarvam is down.
+ */
 export async function translateSafe(
   text: string,
-  source: string,
+  source: string | null | undefined,
   target: string,
-  mode: TranslateMode = "formal"
-): Promise<{ text: string; ok: boolean }> {
-  if (!text.trim() || source === target) return { text, ok: true };
-  if (sarvamAvailable()) {
-    try {
-      return { text: await translateText(text, source, target, mode), ok: true };
-    } catch (e) {
-      console.warn("translate failed, trying offline dictionary:", (e as Error).message);
-    }
+  opts: TranslateOptions = {}
+): Promise<TranslateResult> {
+  try {
+    return await translate(text, source, target, opts);
+  } catch (e) {
+    console.warn("translate failed:", (e as Error).message);
+    return { text, ok: false, flagged: false, missing: [], sourceLang: source ?? target, model: null, cached: false };
   }
-  // No key (or Sarvam down): built-in phrase dictionary covering the demo conversation.
-  const offline = translateOffline(text, source, target);
-  return offline != null ? { text: offline, ok: true } : { text, ok: false };
 }
 
 export async function ttsSafe(

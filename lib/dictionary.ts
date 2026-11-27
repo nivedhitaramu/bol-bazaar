@@ -5,7 +5,8 @@
  * (different punctuation, a word dropped/added) still hit.
  */
 
-type Entry = { ta: string; hi: string; en: string };
+/** `alt`: extra source forms that map to this entry (e.g. romanised Tamil). */
+type Entry = { ta: string; hi: string; en: string; alt?: string[] };
 
 const PHRASES: Entry[] = [
   // ── Seeded conversation (Priya ⇄ Meena) ──
@@ -61,6 +62,23 @@ const PHRASES: Entry[] = [
     ta: "வணக்கம், என் பெயர் ரமேஷ். நான் குர்ஜாவைச் சேர்ந்தவன், மூன்று தலைமுறைகளாக எங்கள் குடும்பம் மண்பாண்டங்கள் செய்கிறது. ஒவ்வொரு பாண்டமும் சக்கரத்தில் கையால் செய்யப்படுகிறது.",
     en: "Hello, my name is Ramesh. I am from Khurja and our family has made pottery for three generations. Every pot is made by hand on the wheel.",
   },
+  // ── Accuracy test sentences (README) ──
+  {
+    ta: "இந்த புடவை எட்டாயிரத்து ஐநூறு ரூபாய், இரண்டு இருக்கு",
+    hi: "इस साड़ी की कीमत 8,500 रुपये है और इसमें 2 हैं।",
+    en: "This saree costs ₹8,500, and 2 are available.",
+  },
+  {
+    hi: "क्या यह असली ज़री है? लखनऊ तक कितने दिन लगेंगे?",
+    ta: "இது உண்மையான ஜரிகையா? லக்னோ வரை எத்தனை நாட்கள் ஆகும்?",
+    en: "Is this real zari? How many days will it take to reach Lucknow?",
+  },
+  {
+    ta: "ஆர்டரை உறுதி செய்யுங்கள், நாளைக்கு அனுப்புகிறேன்.",
+    hi: "ऑर्डर की पुष्टि करें, मैं इसे कल भेज दूँगी।",
+    en: "Please confirm the order, I will ship it tomorrow.",
+    alt: ["Order confirm pannu, naalaikku ship pannuven", "ஆர்டர் கன்ஃபர்ம் பண்ணு, நாளைக்கு ஷிப் பண்ணுவேன்"],
+  },
   // ── Common marketplace phrases ──
   { hi: "नमस्ते", ta: "வணக்கம்", en: "Hello" },
   { hi: "धन्यवाद", ta: "நன்றி", en: "Thank you" },
@@ -87,7 +105,8 @@ const PHRASES: Entry[] = [
   { hi: "UPI से भुगतान कर सकते हैं।", ta: "UPI மூலம் பணம் செலுத்தலாம்.", en: "You can pay by UPI." },
 ];
 
-const LANG_KEY: Record<string, keyof Entry> = { ta: "ta", hi: "hi", en: "en" };
+type LangKey = "ta" | "hi" | "en";
+const LANG_KEY: Record<string, LangKey> = { ta: "ta", hi: "hi", en: "en" };
 
 function norm(s: string): string {
   return s
@@ -118,10 +137,11 @@ export function translateOffline(text: string, source: string, target: string): 
   const t = tokens(text);
 
   let best: { e: Entry; score: number } | null = null;
-  const candidates = src ? [src] : (["ta", "hi", "en"] as const); // unknown source: try all
+  const candidates: LangKey[] = src ? [src] : ["ta", "hi", "en"]; // unknown source: try all
   for (const e of PHRASES) {
-    for (const k of candidates) {
-      const score = norm(e[k]) === n ? 1 : similarity(t, tokens(e[k]));
+    const forms = [...candidates.map((k) => e[k]), ...(e.alt ?? [])];
+    for (const f of forms) {
+      const score = norm(f) === n ? 1 : similarity(t, tokens(f));
       if (!best || score > best.score) best = { e, score };
     }
   }

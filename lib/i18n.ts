@@ -96,6 +96,7 @@ const en = {
   chatWith: "Chat",
   translatedTo: "Translated",
   translationKeyNotSet: "Translation key not set",
+  checkTranslation: "check",
   keyNotSet: "AI key not set — using basic offline mode",
   demoBanner: "Demo mode — API keys not set. Add keys in .env.local for full AI voice.",
 } as const;
@@ -199,6 +200,7 @@ const hi: Dict = {
   chatWith: "बातचीत",
   translatedTo: "अनुवाद",
   translationKeyNotSet: "अनुवाद की कुंजी सेट नहीं है",
+  checkTranslation: "जाँचें",
   keyNotSet: "AI कुंजी सेट नहीं है — बुनियादी ऑफ़लाइन मोड",
   demoBanner: "डेमो मोड — API कुंजियाँ सेट नहीं हैं। पूरी AI आवाज़ के लिए .env.local में कुंजियाँ जोड़ें।",
 };
@@ -299,6 +301,7 @@ const ta: Dict = {
   chatWith: "உரையாடல்",
   translatedTo: "மொழிபெயர்ப்பு",
   translationKeyNotSet: "மொழிபெயர்ப்பு விசை அமைக்கப்படவில்லை",
+  checkTranslation: "சரிபார்க்கவும்",
   keyNotSet: "AI விசை அமைக்கப்படவில்லை — அடிப்படை ஆஃப்லைன் முறை",
   demoBanner: "டெமோ முறை — API விசைகள் அமைக்கப்படவில்லை. முழு AI குரலுக்கு .env.local-ல் விசைகளைச் சேர்க்கவும்.",
 };

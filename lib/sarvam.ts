@@ -128,37 +128,90 @@ function chunkText(text: string, max: number): string[] {
   return out.flatMap((c) => (c.length > max ? c.match(new RegExp(`[\\s\\S]{1,${max}}`, "g")) ?? [] : [c]));
 }
 
+export type TranslateModel = "sarvam-translate:v1" | "mayura:v1";
+
+/** Languages each model accepts (docs.sarvam.ai, Nov 2026). */
+export const MODEL_LANGS: Record<TranslateModel, Set<string>> = {
+  "sarvam-translate:v1": new Set([
+    "as-IN", "bn-IN", "brx-IN", "doi-IN", "en-IN", "gu-IN", "hi-IN", "kn-IN", "ks-IN", "kok-IN", "mai-IN", "ml-IN",
+    "mni-IN", "mr-IN", "ne-IN", "od-IN", "pa-IN", "sa-IN", "sat-IN", "sd-IN", "ta-IN", "te-IN", "ur-IN",
+  ]),
+  "mayura:v1": new Set(["bn-IN", "en-IN", "gu-IN", "hi-IN", "kn-IN", "ml-IN", "mr-IN", "od-IN", "pa-IN", "ta-IN", "te-IN"]),
+};
+
+/**
+ * Raw Sarvam /translate call. Prefer lib/translate (protection, glossary, back-check, cache).
+ * sarvam-translate:v1: 22 languages, formal register only, explicit source code, ≤2000 chars.
+ * mayura:v1: 11 languages, modes + "auto" source, ≤1000 chars.
+ */
 export async function translateText(
   text: string,
   source: string | "auto",
   target: string,
-  mode: TranslateMode = "formal"
+  mode: TranslateMode = "formal",
+  opts: { model?: TranslateModel; speakerGender?: "Male" | "Female" } = {}
 ): Promise<string> {
   const input = text.trim();
   if (!input || source === target) return input;
-  const chunks = chunkText(input, 950);
+  const model = opts.model ?? (process.env.SARVAM_TRANSLATE_MODEL as TranslateModel | undefined) ?? "sarvam-translate:v1";
+  const chunks = chunkText(input, model === "mayura:v1" ? 950 : 1900);
+  const send = (chunk: string, withGender: boolean) =>
+    call<{ translated_text: string }>(
+      "translate",
+      "/translate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          input: chunk,
+          source_language_code: source,
+          target_language_code: target,
+          model,
+          ...(model === "mayura:v1" ? { mode } : {}),
+          ...(withGender && opts.speakerGender ? { speaker_gender: opts.speakerGender } : {}),
+          numerals_format: "international",
+        }),
+      },
+      { timeoutMs: 12_000, retries: 1 }
+    ).then((r) => r.translated_text);
   const results = await Promise.all(
-    chunks.map((chunk) =>
-      call<{ translated_text: string }>(
-        "translate",
-        "/translate",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            input: chunk,
-            source_language_code: source,
-            target_language_code: target,
-            model: models.translate(),
-            mode,
-            numerals_format: "international",
-          }),
-        },
-        { timeoutMs: 12_000, retries: 1 }
-      ).then((r) => r.translated_text)
-    )
+    chunks.map(async (chunk) => {
+      try {
+        return await send(chunk, true);
+      } catch (e) {
+        // speaker_gender isn't documented for every model — retry without it on a 4xx.
+        if (opts.speakerGender && e instanceof SarvamError && e.status && e.status < 500) return send(chunk, false);
+        throw e;
+      }
+    })
   );
   return results.join(" ").trim();
+}
+
+/** POST /text-lid → language + script (script "Latn" = romanised Indic or English). */
+export async function identifyLanguage(text: string): Promise<{ languageCode: string | null; scriptCode: string | null }> {
+  const r = await call<{ language_code?: string | null; script_code?: string | null }>(
+    "translate",
+    "/text-lid",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ input: text.slice(0, 1000) }) },
+    { timeoutMs: 8_000, retries: 1 }
+  );
+  return { languageCode: r.language_code ?? null, scriptCode: r.script_code ?? null };
+}
+
+/** POST /transliterate — e.g. romanised Tamil ("naalaikku") → Tamil script ("நாளைக்கு"). */
+export async function transliterate(text: string, source: string, target: string): Promise<string> {
+  const r = await call<{ transliterated_text: string }>(
+    "translate",
+    "/transliterate",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input: text.slice(0, 1000), source_language_code: source, target_language_code: target, numerals_format: "international" }),
+    },
+    { timeoutMs: 8_000, retries: 1 }
+  );
+  return r.transliterated_text;
 }
 
 // ───────────────────────── Text to speech ─────────────────────────

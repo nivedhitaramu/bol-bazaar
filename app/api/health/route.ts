@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured, sarvamKey } from "@/lib/env";
-import { chatCompletion, speechToText, textToSpeech, translateText } from "@/lib/sarvam";
+import { chatCompletion, speechToText, textToSpeech } from "@/lib/sarvam";
+import { translate as runTranslate } from "@/lib/translate";
 import { getStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -54,7 +55,11 @@ export async function GET(req: NextRequest) {
       ? check(async () => `transcript="${(await speechToText(silentWav(), { language: "en-IN" })).transcript}"`)
       : Promise.resolve(keyNotSet("browser SpeechRecognition")),
     sarvam
-      ? check(async () => await translateText("Hello, how much is this saree?", "en-IN", "ta-IN"))
+      ? check(async () => {
+          const r = await runTranslate("Hello, how much is this saree? It is ₹8,500.", "en-IN", "ta-IN");
+          if (!r.ok || r.flagged) throw new Error(`translation check failed: ${r.text}`);
+          return `${r.model}: ${r.text}`;
+        })
       : Promise.resolve(keyNotSet("built-in Tamil/Hindi/English phrase dictionary")),
     sarvam
       ? check(async () => `${(await textToSpeech("வணக்கம்", "ta-IN")).base64.length} b64 chars`)

@@ -24,14 +24,22 @@ export async function POST(req: NextRequest) {
     const { from } = sideLanguages(conv, sender);
 
     const s0 = Date.now();
-    const input = await voiceInput(form, from);
+    // STT auto-detects the spoken language ("unknown"); typed text is detected from its script / text-lid.
+    const input = await voiceInput(form, "unknown");
     const stt_ms = input.via === "sarvam" ? Date.now() - s0 : 0;
 
-    const r = await postMessage({ conv, sender, text: input.transcript });
+    const r = await postMessage({
+      conv,
+      sender,
+      text: input.transcript,
+      sourceLang: input.detectedLanguage ?? from, // hint only; postMessage verifies against the script
+    });
     return ok({
       message: r.message,
       translatedOk: r.translatedOk,
       ttsOk: r.ttsOk,
+      flagged: r.flagged,
+      missing: r.missing,
       timings: { ...r.timings, stt_ms, total_ms: Date.now() - t0 },
     });
   } catch (e) {
