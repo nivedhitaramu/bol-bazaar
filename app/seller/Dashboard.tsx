@@ -191,7 +191,7 @@ export function Dashboard({
             <SpeakLangPicker value={sellerLang} onChange={setSpeakLang} />
           </div>
         </div>
-        <button onClick={onSignOut} className="grid size-11 place-items-center rounded-full hover:bg-sand" aria-label="Sign out">
+        <button onClick={onSignOut} className="grid size-14 place-items-center rounded-full hover:bg-sand" aria-label="Sign out">
           <LogOut className="size-5 text-muted" />
         </button>
       </div>
@@ -300,13 +300,13 @@ export function Dashboard({
                 </div>
                 <div className="flex flex-col gap-1.5">
                   {next && (
-                    <button onClick={() => advance(o.id, next)} disabled={updating === o.id} className="btn btn-saffron min-h-11 px-3 text-sm">
+                    <button onClick={() => advance(o.id, next)} disabled={updating === o.id} className="btn btn-saffron min-h-14 px-3 text-sm">
                       {updating === o.id ? <Loader2 className="size-4 animate-spin" /> : next === "shipped" ? <Truck className="size-4" /> : <Check className="size-4" />}
                       {t(`status_${next}`)}
                     </button>
                   )}
                   {o.conversation_id && (
-                    <Link href={`/chat/${o.conversation_id}?as=seller`} className="btn btn-ghost min-h-11 px-3 text-sm" aria-label={t("chatWith")}>
+                    <Link href={`/chat/${o.conversation_id}?as=seller`} className="btn btn-ghost min-h-14 px-3 text-sm" aria-label={t("chatWith")}>
                       <MessageCircle className="size-4" />
                     </Link>
                   )}
@@ -336,7 +336,7 @@ export function Dashboard({
                   <p className="font-extrabold text-saffron">{formatINR(p.price)}</p>
                   <button
                     onClick={() => togglePublish(p.id, p.status)}
-                    className={`mt-2 flex min-h-10 w-full items-center justify-center gap-1 rounded-xl text-xs font-bold ${
+                    className={`mt-2 flex min-h-14 w-full items-center justify-center gap-1 rounded-xl text-xs font-bold ${
                       p.status === "published" ? "bg-leaf/10 text-leaf" : "bg-sand text-muted"
                     }`}
                   >

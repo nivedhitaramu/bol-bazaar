@@ -45,16 +45,16 @@ export function RecoveryCard({
       <div className="mt-2 flex items-center gap-2">
         {kind === "confirm" ? (
           <>
-            <button type="button" onClick={() => onPick("yes")} disabled={busy} className="btn btn-primary min-h-12 flex-1 bg-leaf px-3">
+            <button type="button" onClick={() => onPick("yes")} disabled={busy} className="btn btn-primary min-h-14 flex-1 bg-leaf px-3">
               <Check className="size-5" /> {labels.yes}
             </button>
-            <button type="button" onClick={() => onPick("no")} disabled={busy} className="btn btn-ghost min-h-12 flex-1 px-3">
+            <button type="button" onClick={() => onPick("no")} disabled={busy} className="btn btn-ghost min-h-14 flex-1 px-3">
               <X className="size-5" /> {labels.no}
             </button>
           </>
         ) : (
           options?.map((o, i) => (
-            <button key={i} type="button" onClick={() => onPick(i as 0 | 1)} disabled={busy} className="btn btn-ghost min-h-12 flex-1 border-2 border-saffron/50 bg-white px-3 text-lg">
+            <button key={i} type="button" onClick={() => onPick(i as 0 | 1)} disabled={busy} className="btn btn-ghost min-h-14 flex-1 border-2 border-saffron/50 bg-white px-3 text-lg">
               {o}
             </button>
           ))

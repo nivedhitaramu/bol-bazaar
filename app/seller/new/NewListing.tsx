@@ -392,7 +392,7 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
                     role="tab"
                     aria-selected={tab === c}
                     onClick={() => setTab(c)}
-                    className={`min-h-10 rounded-full px-3 text-sm font-bold ${tab === c ? "bg-maroon text-white" : "bg-sand"}`}
+                    className={`min-h-14 rounded-full px-3 text-sm font-bold ${tab === c ? "bg-maroon text-white" : "bg-sand"}`}
                   >
                     {langInfo(`${c}-IN`).native}
                   </button>
@@ -419,7 +419,7 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
               </div>
             </div>
             <div className="flex flex-wrap gap-2 border-t border-sand px-4 py-3">
-              <button onClick={() => readBack(res)} disabled={speaking} className="btn btn-ghost min-h-12 flex-1">
+              <button onClick={() => readBack(res)} disabled={speaking} className="btn btn-ghost min-h-14 flex-1">
                 {speaking ? (
                   <span className="eq text-maroon">
                     <span /><span /><span /><span />
@@ -430,7 +430,7 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
                 {speaking ? t("speaking") : t("readAloud")}
               </button>
               {dirty && (
-                <button onClick={regenerate} disabled={!!busy} className="btn btn-ghost min-h-12 flex-1">
+                <button onClick={regenerate} disabled={!!busy} className="btn btn-ghost min-h-14 flex-1">
                   {busy === "regen" ? <Loader2 className="size-5 animate-spin" /> : <RefreshCw className="size-5" />}
                   {t("listingPreview")}
                 </button>

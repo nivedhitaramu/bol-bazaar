@@ -82,7 +82,7 @@ export function BuyerActions({ productId, price, maxQty }: { productId: string; 
                 </h2>
                 <button
                   onClick={() => setMode(null)}
-                  className="grid size-11 place-items-center rounded-full hover:bg-sand"
+                  className="grid size-14 place-items-center rounded-full hover:bg-sand"
                   aria-label="Close"
                 >
                   <X className="size-5" />

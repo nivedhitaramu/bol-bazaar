@@ -45,7 +45,7 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={`flex min-h-11 items-center gap-1.5 rounded-full border-2 border-sand bg-white px-3 font-semibold text-ink hover:border-saffron ${compact ? "text-sm" : ""}`}
+        className={`flex min-h-14 items-center gap-1.5 rounded-full border-2 border-sand bg-white px-3 font-semibold text-ink hover:border-saffron ${compact ? "text-sm" : ""}`}
         aria-label={`${t("appLanguage")}: ${langInfo(lang).native}`}
         title={t("appLanguage")}
       >
@@ -83,7 +83,7 @@ export function SpeakLangPicker({ value, onChange }: { value: string; onChange: 
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full bg-turmeric-soft px-3.5 text-sm font-bold text-maroon ring-1 ring-turmeric/60 hover:bg-turmeric/30"
+        className="inline-flex min-h-14 items-center gap-2 rounded-full bg-turmeric-soft px-3.5 text-sm font-bold text-maroon ring-1 ring-turmeric/60 hover:bg-turmeric/30"
       >
         <Mic className="size-4" />
         {t("iSpeak")}: <span className="text-base">{langInfo(value).native}</span>

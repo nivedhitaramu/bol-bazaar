@@ -92,7 +92,7 @@ body {
 
 .input {
   width: 100%;
-  min-height: 52px;
+  min-height: 56px;
   border-radius: 0.9rem;
   border: 2px solid var(--color-sand);
   background: #fff;
@@ -129,4 +129,18 @@ body {
    buttons) widens the whole column past a 375px screen. Let tracks shrink; text truncates/wraps. */
 .grid > * {
   min-width: 0;
+}
+
+/* Compact visual, 56px tap target (replay pills inside chat bubbles, the banner link). */
+.tap-56 {
+  position: relative;
+}
+.tap-56::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 56px);
+  height: max(100%, 56px);
+  transform: translate(-50%, -50%);
 }

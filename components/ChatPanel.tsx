@@ -372,7 +372,7 @@ export function ChatPanel({
     <div className="flex h-full min-h-0 flex-col bg-cream">
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-sand bg-white px-3 py-2">
-        <div className="grid size-11 shrink-0 place-items-center rounded-full bg-maroon font-display text-lg font-bold text-white">
+        <div className="grid size-14 shrink-0 place-items-center rounded-full bg-maroon font-display text-lg font-bold text-white">
           {peerName.slice(0, 1)}
         </div>
         <div className="min-w-0 flex-1">
@@ -384,7 +384,7 @@ export function ChatPanel({
           </p>
         </div>
         <span
-          className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold ${live ? "bg-leaf/10 text-leaf" : "bg-sand text-muted"}`}
+          className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ${live ? "bg-leaf/10 text-leaf" : "bg-sand text-muted"}`}
           title={live ? "Realtime connected" : "Polling"}
         >
           {live ? <Wifi className="size-3" /> : <WifiOff className="size-3" />}
@@ -427,23 +427,23 @@ export function ChatPanel({
                     role="alert"
                     className={`mt-1.5 rounded-xl px-2.5 py-1.5 text-sm ${mine ? "bg-white/15 text-white" : "bg-turmeric-soft text-ink"}`}
                   >
-                    <span className="mr-1.5 inline-flex items-center rounded-full bg-saffron px-2 py-0.5 text-[11px] font-extrabold text-white">
+                    <span className="mr-1.5 inline-flex items-center rounded-full bg-saffron px-2 py-0.5 text-xs font-extrabold text-white">
                       ⚠ {t("checkTranslation")}
                     </span>
-                    <span className="text-[11px] font-bold uppercase tracking-wide opacity-70">{t("original")}:</span>{" "}
+                    <span className="text-xs font-bold uppercase tracking-wide opacity-70">{t("original")}:</span>{" "}
                     <span className="font-semibold">{m.original_text}</span>
                   </div>
                 )}
                 {untranslated && (
                   <span
-                    className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${mine ? "bg-white/15 text-white/80" : "bg-turmeric-soft text-maroon"}`}
+                    className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold ${mine ? "bg-white/15 text-white/80" : "bg-turmeric-soft text-maroon"}`}
                   >
                     🔑 {t("translationKeyNotSet")}
                   </span>
                 )}
                 {small && small !== big && (
                   <p className={`mt-1 text-sm leading-snug ${mine ? "text-white/65" : "text-muted"}`}>
-                    <span className="mr-1 text-[10px] font-bold uppercase tracking-wide opacity-80">
+                    <span className="mr-1 text-xs font-bold uppercase tracking-wide opacity-80">
                       {smallLang ? langInfo(smallLang).native : t("original")}
                     </span>
                     {small}
@@ -453,7 +453,7 @@ export function ChatPanel({
                   <button
                     type="button"
                     onClick={() => replay(m)}
-                    className={`flex min-h-8 items-center gap-1 rounded-full px-2 font-semibold ${mine ? "bg-white/15" : "bg-sand"}`}
+                    className={`tap-56 flex min-h-8 items-center gap-1 rounded-full px-2 font-semibold ${mine ? "bg-white/15" : "bg-sand"}`}
                     aria-label={t("replay")}
                   >
                     {playing ? (
@@ -599,7 +599,7 @@ function OrderTracker({ order, t }: { order: Order; t: ReturnType<typeof transla
             >
               <Icon className="size-3.5" />
             </span>
-            <span className={`truncate text-[11px] font-bold ${done ? "text-leaf" : "text-muted"}`}>{t(`status_${s}`)}</span>
+            <span className={`truncate text-xs font-bold ${done ? "text-leaf" : "text-muted"}`}>{t(`status_${s}`)}</span>
             {i < steps.length - 1 && <span className={`h-0.5 flex-1 rounded ${i < idx ? "bg-leaf" : "bg-white"}`} />}
           </div>
         );

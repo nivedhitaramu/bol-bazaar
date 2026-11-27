@@ -91,7 +91,7 @@ export function AskShop({ sellerId, speakLang }: { sellerId: string; speakLang: 
               <p className="text-2xl font-bold leading-snug text-ink" lang={res.lang.split("-")[0]}>
                 {res.answer}
               </p>
-              <button onClick={() => say(res)} className="btn btn-ghost mt-3 min-h-12 bg-white">
+              <button onClick={() => say(res)} className="btn btn-ghost mt-3 min-h-14 bg-white">
                 {speaking ? (
                   <span className="eq text-maroon">
                     <span /><span /><span /><span />
@@ -108,7 +108,7 @@ export function AskShop({ sellerId, speakLang }: { sellerId: string; speakLang: 
 
       <div className="border-t border-sand px-4 py-2">
         {!showText ? (
-          <button type="button" onClick={() => setShowText(true)} className="flex min-h-11 items-center gap-2 text-sm font-semibold text-muted">
+          <button type="button" onClick={() => setShowText(true)} className="flex min-h-14 items-center gap-2 text-sm font-semibold text-muted">
             <Keyboard className="size-4" /> {t("typeInstead")}
           </button>
         ) : (

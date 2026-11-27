@@ -85,7 +85,7 @@ function Chip({ href, on, children, small }: { href: string; on: boolean; childr
     <Link
       href={href}
       aria-current={on ? "page" : undefined}
-      className={`flex shrink-0 items-center whitespace-nowrap rounded-full border-2 px-4 font-semibold transition ${small ? "min-h-10 text-sm" : "min-h-12"} ${
+      className={`flex shrink-0 items-center whitespace-nowrap rounded-full border-2 px-4 font-semibold transition ${small ? "min-h-14 text-sm" : "min-h-14"} ${
         on ? "border-maroon bg-maroon text-white" : "border-sand bg-white hover:border-saffron"
       }`}
     >

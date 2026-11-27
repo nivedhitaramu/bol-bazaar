@@ -75,7 +75,7 @@ export function Storefront({ seller, products, initialLang }: { seller: Seller; 
                   role="tab"
                   aria-selected={sel === l}
                   onClick={() => setSel(l)}
-                  className={`min-h-10 rounded-full px-4 text-sm font-bold transition ${sel === l ? "bg-turmeric text-maroon shadow" : "text-white/85 hover:text-white"}`}
+                  className={`min-h-14 rounded-full px-4 text-sm font-bold transition ${sel === l ? "bg-turmeric text-maroon shadow" : "text-white/85 hover:text-white"}`}
                 >
                   {langInfo(`${l}-IN`).native}
                 </button>

@@ -43,7 +43,7 @@ export function LaunchSequence({
               }`}
             >
               <span
-                className={`relative grid size-11 shrink-0 place-items-center rounded-full transition-colors duration-500 ${
+                className={`relative grid size-14 shrink-0 place-items-center rounded-full transition-colors duration-500 ${
                   done ? "bg-leaf text-white" : active ? "bg-saffron text-white" : "bg-white/10"
                 }`}
               >

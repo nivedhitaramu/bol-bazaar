@@ -41,16 +41,16 @@ export function DemoSplit() {
           <span className="hidden text-base font-semibold text-muted md:inline">— live cross-language chat</span>
         </p>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-          <Link href="/seller/shop-setup?demo=1" className="btn btn-saffron min-h-11 px-3 text-sm">
+          <Link href="/seller/shop-setup?demo=1" className="btn btn-saffron min-h-14 px-3 text-sm">
             <Mic className="size-4" /> Speak your shop
           </Link>
-          <Link href={`/shop/${DEMO.meenaId}`} className="btn btn-ghost min-h-11 px-3 text-sm">
+          <Link href={`/shop/${DEMO.meenaId}`} className="btn btn-ghost min-h-14 px-3 text-sm">
             <Store className="size-4" /> Meena&apos;s shop
           </Link>
-          <Link href={`/chat/${DEMO.conversationId}?as=buyer`} target="_blank" className="btn btn-ghost min-h-11 px-3 text-sm">
+          <Link href={`/chat/${DEMO.conversationId}?as=buyer`} target="_blank" className="btn btn-ghost min-h-14 px-3 text-sm">
             <ExternalLink className="size-4" /> Buyer on phone
           </Link>
-          <button onClick={reset} disabled={resetting} className="btn btn-primary min-h-11 px-3 text-sm">
+          <button onClick={reset} disabled={resetting} className="btn btn-primary min-h-14 px-3 text-sm">
             {resetting ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />} Reset demo
           </button>
         </div>

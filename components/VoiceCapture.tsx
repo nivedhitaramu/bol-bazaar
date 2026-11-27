@@ -102,7 +102,7 @@ export function VoiceCapture({
       {allowText && (
         <div className="w-full max-w-md">
           {!showText ? (
-            <button type="button" onClick={() => setShowText(true)} className="mx-auto flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-muted hover:text-ink">
+            <button type="button" onClick={() => setShowText(true)} className="mx-auto flex min-h-14 items-center gap-2 rounded-full px-3 text-sm font-semibold text-muted hover:text-ink">
               <Keyboard className="size-4" /> {t("typeInstead")}
             </button>
           ) : (

@@ -300,7 +300,7 @@ function Field({ label, missing, note, children }: { label: string; missing?: bo
       <span className="flex items-center gap-1.5 text-sm font-bold text-muted">
         {label}
         {missing && <span className="size-2 rounded-full bg-turmeric" aria-label="missing" />}
-        {note && <span className="text-[11px] font-semibold text-leaf">· {note}</span>}
+        {note && <span className="text-xs font-semibold text-leaf">· {note}</span>}
       </span>
       {children}
     </label>
@@ -343,7 +343,7 @@ function TypeInstead({ onSend, disabled, t }: { onSend: (text: string) => void; 
   const [text, setText] = useState("");
   if (!open)
     return (
-      <button type="button" onClick={() => setOpen(true)} className="mt-1 min-h-11 text-sm font-semibold text-muted underline">
+      <button type="button" onClick={() => setOpen(true)} className="mt-1 min-h-14 text-sm font-semibold text-muted underline">
         {t("typeInstead")}
       </button>
     );

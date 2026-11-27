@@ -77,7 +77,7 @@ export function Popover({
       <h2 className="flex items-center gap-2 font-display text-xl font-bold text-maroon">
         {icon} {title}
       </h2>
-      <button onClick={onClose} className="grid size-11 shrink-0 place-items-center rounded-full hover:bg-sand" aria-label="Close">
+      <button onClick={onClose} className="grid size-14 shrink-0 place-items-center rounded-full hover:bg-sand" aria-label="Close">
         <X className="size-5" />
       </button>
     </div>

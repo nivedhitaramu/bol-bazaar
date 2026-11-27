@@ -158,7 +158,7 @@ export default function OnboardPage() {
                 ) : (
                   <p className="flex-1 text-left text-sm italic">“{intro.text}”</p>
                 )}
-                <button type="button" onClick={() => setIntro(null)} className="grid size-11 place-items-center rounded-full hover:bg-sand" aria-label="Re-record">
+                <button type="button" onClick={() => setIntro(null)} className="grid size-14 place-items-center rounded-full hover:bg-sand" aria-label="Re-record">
                   <RotateCcw className="size-5" />
                 </button>
               </div>

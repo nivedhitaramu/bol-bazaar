@@ -99,10 +99,10 @@ export function OrderVoiceCommand({
               setText("");
             }}
           >
-            <input className="input min-h-10 py-1 text-sm" value={text} onChange={(e) => setText(e.target.value)} placeholder="confirm order" />
+            <input className="input min-h-14 py-1 text-sm" value={text} onChange={(e) => setText(e.target.value)} placeholder="confirm order" />
           </form>
         ) : (
-          <button type="button" className="mt-0.5 text-xs font-semibold text-muted underline" onClick={() => setShowText(true)}>
+          <button type="button" className="mt-0.5 min-h-14 text-sm font-semibold text-muted underline" onClick={() => setShowText(true)}>
             {t("typeInstead")}
           </button>
         )}

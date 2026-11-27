@@ -10,7 +10,7 @@ export function DemoBanner({ text }: { text: string }) {
     >
       <KeyRound className="size-3.5 shrink-0 text-turmeric" aria-hidden />
       <span className="truncate">{text}</span>
-      <a href="/api/health" className="ml-1 shrink-0 text-turmeric underline">
+      <a href="/api/health" className="tap-56 ml-1 shrink-0 text-turmeric underline">
         status
       </a>
     </div>

@@ -68,7 +68,7 @@ export default async function Home() {
             </Link>
           </div>
 
-          <Link href="/demo" className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full bg-ink px-5 py-3 font-bold text-cream shadow-lg transition hover:bg-ink/90">
+          <Link href="/demo" className="mx-auto mt-5 flex min-h-14 w-fit items-center gap-2 rounded-full bg-ink px-5 font-bold text-cream shadow-lg transition hover:bg-ink/90">
             <PlayCircle className="size-5 text-turmeric" /> {t("demo")}: தமிழ் <ArrowLeftRight className="size-4" /> हिन्दी
           </Link>
         </section>

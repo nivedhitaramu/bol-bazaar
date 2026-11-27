@@ -27,7 +27,7 @@ export function ChatScreen({ conversationId, side }: { conversationId: string; s
       <div className="flex items-center gap-2 border-b border-sand bg-cream px-2 py-1.5">
         <button
           onClick={() => (history.length > 1 ? router.back() : router.push(side === "seller" ? "/seller" : "/shop"))}
-          className="grid size-11 place-items-center rounded-full hover:bg-sand"
+          className="grid size-14 place-items-center rounded-full hover:bg-sand"
           aria-label={t("back")}
         >
           <ArrowLeft className="size-5" />

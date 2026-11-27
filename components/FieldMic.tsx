@@ -35,7 +35,7 @@ export function FieldMic({ lang, onText, label }: { lang: string; onText: (s: st
       onClick={v.toggle}
       disabled={busy}
       aria-label={`${label}: ${rec ? t("stop") : t("tapToSpeak")}`}
-      className={`grid size-[52px] shrink-0 place-items-center rounded-xl text-white transition active:scale-95 ${rec ? "bg-saffron animate-pulse" : "bg-maroon"}`}
+      className={`grid size-14 shrink-0 place-items-center rounded-xl text-white transition active:scale-95 ${rec ? "bg-saffron animate-pulse" : "bg-maroon"}`}
     >
       {busy || v.state === "processing" ? <Loader2 className="size-5 animate-spin" /> : rec ? <Square className="size-5 fill-white" /> : <Mic className="size-5" />}
     </button>

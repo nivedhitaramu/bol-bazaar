@@ -24,7 +24,7 @@ export function HandsFreeToggle({
       onClick={() => onChange(!on)}
       className={`flex w-full items-center gap-3 rounded-2xl border-2 text-left transition ${
         on ? "border-leaf bg-leaf/10" : "border-sand bg-white hover:border-saffron"
-      } ${compact ? "min-h-12 px-3 py-1.5" : "min-h-14 px-4 py-2"}`}
+      } ${compact ? "min-h-14 px-3 py-1.5" : "min-h-14 px-4 py-2"}`}
     >
       <span className={`grid shrink-0 place-items-center rounded-xl ${on ? "bg-leaf text-white" : "bg-sand text-ink"} ${compact ? "size-8" : "size-10"}`}>
         {on ? <Ear className="size-5" /> : <Hand className="size-5" />}
