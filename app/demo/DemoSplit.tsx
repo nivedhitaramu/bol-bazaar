@@ -6,6 +6,7 @@ import { ChatPanel } from "@/components/ChatPanel";
 import { SoundGate } from "@/components/SoundGate";
 import { Logo } from "@/components/AppHeader";
 import { OrderVoiceCommand } from "@/components/OrderVoiceCommand";
+import { DemoStory } from "@/components/DemoStory";
 import { useToast } from "@/components/Toast";
 import { DEMO } from "@/lib/demoIds";
 import { postJson } from "@/lib/client/api";
@@ -55,15 +56,16 @@ export function DemoSplit() {
           </button>
         </div>
       </header>
+      <DemoStory />
 
-      <main key={epoch} className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 md:grid-cols-2 md:overflow-hidden">
+      <main id="chat" key={epoch} className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 md:grid-cols-2 md:overflow-hidden">
         <section className="card flex h-[85dvh] min-h-0 flex-col overflow-hidden md:h-auto" aria-label="Seller — Meena (Tamil)">
           <div className="flex items-center gap-2 bg-maroon px-4 py-2 text-white">
             <span className="text-xs font-bold uppercase tracking-widest text-turmeric">Seller</span>
             <span className="font-bold">Meena · Kanchipuram</span>
             <span className="ml-auto rounded-full bg-white/15 px-2 py-0.5 text-sm">தமிழ்</span>
           </div>
-          <div className="border-b border-sand bg-white p-2">
+          <div id="orders" className="border-b border-sand bg-white p-2">
             <OrderVoiceCommand sellerId={DEMO.meenaId} language="ta-IN" uiLang="ta-IN" compact />
           </div>
           <div className="min-h-0 flex-1">
