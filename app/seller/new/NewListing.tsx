@@ -23,6 +23,9 @@ import { HandsFreeStatus, HandsFreeToggle } from "@/components/HandsFree";
 import { useHandsFree } from "@/lib/client/useHandsFree";
 import { downscaleImage, postJson, postVoice, uploadFile } from "@/lib/client/api";
 import { play, stopAudio } from "@/lib/client/player";
+import { RecoveryCard } from "@/components/RecoveryCard";
+import { classifyYesNo, isUndo, listingConfirmPrompt, recoveryText } from "@/lib/recovery";
+import { answerText } from "@/lib/client/recoveryClient";
 import type { LocalSeller } from "@/lib/client/useSeller";
 import type { VoiceResult } from "@/lib/client/useVoiceInput";
 import { CATEGORIES, langInfo, shortOf } from "@/lib/languages";
@@ -41,6 +44,8 @@ type DraftResponse = {
   audio: string | null;
   mime: string | null;
   sources: Record<string, string>;
+  /** "No, wrong" / "illa, thappu" — restore the previous draft. */
+  undo?: boolean;
 };
 
 const FIELD_LABEL: Record<keyof ProductDraft, I18nKey> = {
@@ -109,13 +114,75 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
     );
   };
 
+  // ── Read-back + spoken "yes" before saving; "illa, thappu" undoes the last change ──
+  const history = useRef<Array<{ res: DraftResponse; draft: ProductDraft }>>([]);
+  const [confirmed, setConfirmed] = useState(false);
+  const [askConfirm, setAskConfirm] = useState<string | null>(null);
+  const askConfirmRef = useRef<string | null>(null);
+  askConfirmRef.current = askConfirm;
+
+  /** Ask for a spoken yes whenever the price or quantity is new or changed. */
+  const requestConfirm = (d: ProductDraft, speakIt = true) => {
+    if (d.price == null && d.quantity == null) {
+      setAskConfirm(null);
+      setConfirmed(true);
+      return;
+    }
+    const prompt = listingConfirmPrompt(d.price, d.quantity, sellerLang);
+    setConfirmed(false);
+    setAskConfirm(prompt);
+    if (speakIt) play({ text: prompt, lang: sellerLang }); // queued after the read-back
+  };
+
   const apply = (r: DraftResponse) => {
+    const before = draft;
+    if (res && draft) history.current.push({ res, draft });
     setRes(r);
     setDraft(r.draft);
     setDirty(false);
     if (r.sources.extract === "heuristic" || r.sources.listing === "heuristic" || r.sources.edit === "heuristic")
       toast(t("keyNotSet"));
     readBack(r);
+    const numbersChanged = !before || before.price !== r.draft.price || before.quantity !== r.draft.quantity;
+    if (numbersChanged || !confirmed) requestConfirm(r.draft);
+  };
+
+  const undoLast = () => {
+    const prev = history.current.pop();
+    if (prev) {
+      setRes(prev.res);
+      setDraft(prev.draft);
+      requestConfirm(prev.draft, false);
+    } else if (draft) {
+      // Nothing to go back to: forget the numbers that were wrong and ask again.
+      const cleared = { ...draft, price: null, quantity: null };
+      setDraft(cleared);
+      setAskConfirm(null);
+      setConfirmed(false);
+    }
+    toast(recoveryText("undone", sellerLang), "success");
+    play({ text: recoveryText(prev ? "undone" : "sayAgain", sellerLang), lang: sellerLang });
+  };
+
+  const answerConfirm = (choice: "yes" | "no" | null) => {
+    if (choice === "yes") {
+      setConfirmed(true);
+      setAskConfirm(null);
+      toast(`✓ ${t("priceConfirmed")}`, "success");
+      return;
+    }
+    if (choice === "no") return undoLast();
+    play({ text: recoveryText("notSure", sellerLang), lang: sellerLang });
+  };
+
+  const answerConfirmByVoice = async (input: VoiceResult) => {
+    try {
+      const text = await answerText(input, sellerLang);
+      if (isUndo(text)) return undoLast();
+      answerConfirm(classifyYesNo(text));
+    } catch {
+      play({ text: recoveryText("couldntHear", sellerLang), lang: sellerLang });
+    }
   };
 
   const create = async (input: VoiceResult) => {
@@ -127,6 +194,10 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
         sellerId: seller.id,
         gender: seller.gender,
       });
+      if (r.undo) {
+        if (res) undoLast();
+        return;
+      }
       apply(r);
       setTab(sellerShort);
     } finally {
@@ -146,6 +217,7 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
         draft: JSON.stringify(draft),
         listing: dirty ? undefined : JSON.stringify(res.listing),
       });
+      if (r.undo) return undoLast();
       apply(r);
       if (r.change && r.change !== "no change") toast(`✓ ${r.change}`, "success");
     } finally {
@@ -179,6 +251,12 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
       toast(`${t("missing")}: ${!draft.product_name ? t("productName") : t("price")}`, "error");
       return;
     }
+    // Never save a price/quantity the seller hasn't confirmed out loud (or by tapping Yes).
+    if (!confirmed && (draft.price != null || draft.quantity != null)) {
+      toast(t("confirmFirst"), "error");
+      requestConfirm(draft);
+      return;
+    }
     setBusy("save");
     try {
       const url = uploadP.current ? await uploadP.current : photoUrl;
@@ -204,6 +282,7 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
   const setField = <K extends keyof ProductDraft>(k: K, v: ProductDraft[K]) => {
     setDraft((d) => (d ? { ...d, [k]: v } : d));
     if (k !== "price" && k !== "quantity") setDirty(true);
+    else if (draft) requestConfirm({ ...draft, [k]: v }, false); // typed numbers are confirmed too
   };
 
   const isMissing = (k: keyof ProductDraft) => {
@@ -224,6 +303,7 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
     lang: sellerLang,
     onUtterance: async (input) => {
       try {
+        if (askConfirmRef.current) return void (await answerConfirmByVoice(input));
         if (res && draft) await edit(input);
         else await create(input);
       } catch (e) {
@@ -437,6 +517,18 @@ export function NewListing({ seller, setSeller }: { seller: LocalSeller; setSell
               )}
             </div>
           </section>
+
+          {askConfirm && (
+            <RecoveryCard
+              kind="confirm"
+              prompt={askConfirm}
+              lang={sellerLang}
+              busy={busy !== null}
+              labels={{ yes: t("yes"), no: t("no"), tapToSpeak: t("tapToSpeak"), listening: t("listening") }}
+              onVoice={answerConfirmByVoice}
+              onPick={(c) => answerConfirm(c === "yes" ? "yes" : c === "no" ? "no" : null)}
+            />
+          )}
 
           {/* Voice edit */}
           <section className="card mb-4 p-5" aria-label={t("editByVoice")}>

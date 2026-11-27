@@ -6,6 +6,8 @@ import { useToast } from "./Toast";
 import { useVoiceInput, type VoiceResult } from "@/lib/client/useVoiceInput";
 import { postVoice, SwitchedToBrowserStt } from "@/lib/client/api";
 import { play } from "@/lib/client/player";
+import { recoveryText } from "@/lib/recovery";
+import { useFailures } from "@/lib/client/recoveryClient";
 import { translator } from "@/lib/i18n";
 import { normalizeLang } from "@/lib/languages";
 
@@ -31,13 +33,21 @@ export function AskShop({ sellerId, speakLang }: { sellerId: string; speakLang: 
       { onStart: () => setSpeaking(true), onEnd: () => setSpeaking(false) }
     );
 
+  const failures = useFailures(() => {
+    setShowText(true);
+    toast(recoveryText("typeOffer", lang));
+    play({ text: recoveryText("typeOffer", lang), lang });
+  });
+
   const ask = async (input: VoiceResult) => {
     setBusy(true);
     try {
       const r = await postVoice<AskRes>("/api/ask", input, { sellerId, language: lang });
       setRes(r);
       say(r);
+      failures.reset();
     } catch (e) {
+      failures.fail();
       if (e instanceof SwitchedToBrowserStt) toast(`${t("fallbackStt")} — ${t("tapToSpeak")}`);
       else toast(t("errorGeneric"), "error");
     } finally {
@@ -49,6 +59,11 @@ export function AskShop({ sellerId, speakLang }: { sellerId: string; speakLang: 
     lang,
     maxMs: 15_000,
     onResult: ask,
+    onQuiet: () => {
+      toast(t("comeCloser"));
+      play({ text: t("comeCloser"), lang });
+      failures.fail();
+    },
     onError: (k) => {
       if (k !== "short") {
         toast(t("errorMic"), "error");

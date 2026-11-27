@@ -5,7 +5,10 @@ import { MicButton } from "./MicButton";
 import { useLang } from "./LangProvider";
 import { useToast } from "./Toast";
 import { useVoiceInput, type VoiceResult } from "@/lib/client/useVoiceInput";
-import { SwitchedToBrowserStt } from "@/lib/client/api";
+import { ClientApiError, SwitchedToBrowserStt } from "@/lib/client/api";
+import { play } from "@/lib/client/player";
+import { recoveryText } from "@/lib/recovery";
+import { useFailures } from "@/lib/client/recoveryClient";
 
 /** Hook-level error handling shared by every voice surface. */
 export function useVoiceErrorHandler() {
@@ -47,10 +50,19 @@ export function VoiceCapture({
   const [showText, setShowText] = useState(false);
   const [text, setText] = useState("");
 
+  const failures = useFailures(() => {
+    setShowText(true);
+    toast(recoveryText("typeOffer", lang));
+    play({ text: recoveryText("typeOffer", lang), lang });
+  });
+
   const run = async (r: VoiceResult) => {
     try {
       await onInput(r);
+      failures.reset();
     } catch (e) {
+      failures.fail();
+      if (e instanceof ClientApiError && e.code === "empty_transcript") play({ text: recoveryText("couldntHear", lang), lang });
       onErr(e);
     }
   };
@@ -58,8 +70,13 @@ export function VoiceCapture({
   const v = useVoiceInput({
     lang,
     onResult: run,
+    onQuiet: () => {
+      toast(t("comeCloser"));
+      play({ text: t("comeCloser"), lang });
+      failures.fail();
+    },
     onError: (k) => {
-      if (k === "short") return;
+      if (k === "short") return failures.fail();
       toast(t("errorMic"), "error");
       setShowText(true);
     },

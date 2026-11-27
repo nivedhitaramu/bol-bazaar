@@ -66,12 +66,13 @@ Bol Bazaar removes both.
 - **📦 Voice order management**: "confirm order", "ship tomorrow", "shipped" in any language, mapped to an order with a translated, spoken notification to the buyer.
 - **🖥️ /demo**: Tamil seller and Hindi buyer **side by side on one screen**, with a one-click **Reset demo**.
 - **🌐 9 languages**: Tamil, Hindi, English, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati. Core UI is fully translated into Tamil and Hindi.
-- **🛡️ When things go wrong (chat)**: Bol Bazaar doesn't guess.
-  - **Numbers:** any message with a price, quantity or phone number is read back ("I heard ₹8,500. Is that right?") and is only sent after a spoken *yes / haan / aamaa*.
-  - **Sound-alike words:** it asks about only that word: *"'zari'-ஆ, 'saree'-ஆ?"*.
-  - **Undo:** *"No, wrong" / "illa, thappu" / "nahi, galat"* takes back the last message on both screens.
+- **🛡️ When things go wrong**: Bol Bazaar never guesses.
+  - **Read-back:** prices, quantities and order changes are read back and need a spoken *yes / haan / aamaa* (or a tap) first. This covers chat messages with numbers, a listing before it's published, and voice order commands.
+  - **Sound-alike words:** an unusual sound-alike asks about only that word: *"'ज़री' या 'साड़ी'?"*. Common words never trigger it.
+  - **Undo:** *"No, wrong" / "illa, thappu" / "nahi, galat"* undoes the last change. That means a chat message taken back on both screens, the previous listing draft, or the previous order status.
   - **Hearing trouble:** quiet or unclear input gets a spoken *"please come a little closer"*, and after two failed attempts the text box opens (replies are still spoken).
-  - **Translation failures:** if a translation fails, the original is shown, never a guess, and every number is back-checked.
+  - **Translation failures:** the original is shown with *"Translation pending"*, a Retry button and one automatic retry, never a guess.
+  - **For the demo video:** a hidden **simulate noise** control on `/demo` (the faint ∿ in the corner, or Shift+N) sends the next message down the "which word did you mean?" path.
 - **🛟 Works even when AI is down**: browser speech recognition and speech synthesis take over, and rule-based extraction keeps listings and order commands working. A small toast tells the user; nothing crashes.
 
 ## 🏪 Speak your shop online

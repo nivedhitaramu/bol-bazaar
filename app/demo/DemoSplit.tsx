@@ -7,6 +7,7 @@ import { SoundGate } from "@/components/SoundGate";
 import { Logo } from "@/components/AppHeader";
 import { OrderVoiceCommand } from "@/components/OrderVoiceCommand";
 import { DemoStory } from "@/components/DemoStory";
+import { SimulateNoise } from "@/components/SimulateNoise";
 import { useToast } from "@/components/Toast";
 import { DEMO } from "@/lib/demoIds";
 import { postJson } from "@/lib/client/api";
@@ -57,6 +58,7 @@ export function DemoSplit() {
         </div>
       </header>
       <DemoStory />
+      <SimulateNoise />
 
       <main id="chat" key={epoch} className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 md:grid-cols-2 md:overflow-hidden">
         <section className="card flex h-[85dvh] min-h-0 flex-col overflow-hidden md:h-auto" aria-label="Seller — Meena (Tamil)">

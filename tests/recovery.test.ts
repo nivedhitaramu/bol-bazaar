@@ -38,6 +38,9 @@ test("misheard word: ask about ONLY that word, in the speaker's script", () => {
   assert.deepEqual(findConfusable("Is this real zari?"), { word: "zari", options: ["zari", "saree"] });
   assert.deepEqual(findConfusable("क्या यह असली ज़री है?"), { word: "ज़री", options: ["ज़री", "साड़ी"] });
   assert.equal(findConfusable("नमस्ते, कीमत क्या है?"), null);
+  assert.equal(findConfusable("मुझे 2 साड़ी चाहिए"), null, "the common word never triggers a question");
+  assert.equal(findConfusable("I want a silk saree"), null);
+  assert.deepEqual(findConfusable("இது ஜரி வேலை"), { word: "ஜரி", options: ["ஜரி", "சாரி"] });
   assert.equal(clarifyPrompt({ word: "zari", options: ["zari", "saree"] }, "ta-IN"), "“zari”-ஆ, “saree”-ஆ?");
   assert.equal(matchOption("saree", ["zari", "saree"]), 1);
   assert.equal(matchOption("the first one", ["zari", "saree"]), 0);

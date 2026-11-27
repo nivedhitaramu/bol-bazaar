@@ -83,35 +83,40 @@ export function formatValue(v: ConfirmValue): string {
 // ───────────────────────── misheard words ─────────────────────────
 
 /**
- * Sound-alike pairs that matter for selling (STT gives no per-word confidence, so we ask about
- * the words where a mistake would change the meaning). Each group: interchangeable spellings.
+ * Sound-alike mishearings that matter for selling (STT gives no per-word confidence).
+ * DIRECTIONAL: we only ask when the UNUSUAL word is heard ("zari" → "zari or saree?"). The
+ * common word ("saree") never triggers a question — asking every time someone says "saree"
+ * would be maddening.
  */
-const CONFUSABLE: Array<[string[], string[]]> = [
-  [["zari", "jari", "ज़री", "जरी", "ஜரி"], ["saree", "sari", "साड़ी", "सारी", "சாரி"]],
-  [["silk", "सिल्क"], ["milk", "मिल्क"]],
-  [["cotton", "कॉटन", "காட்டன்"], ["carton", "कार्टन"]],
-  [["pattu", "பட்டு"], ["paattu", "பாட்டு"]],
-  [["kaadi", "khadi", "खादी", "காதி"], ["kaari", "कारी"]],
+const CONFUSABLE: Array<{ heard: string[]; alt: string[] }> = [
+  { heard: ["zari", "jari", "ज़री", "जरी", "ஜரி"], alt: ["saree", "साड़ी", "சாரி"] },
+  { heard: ["milk", "मिल्क"], alt: ["silk", "सिल्क"] },
+  { heard: ["carton", "कार्टन"], alt: ["cotton", "कॉटन"] },
+  { heard: ["paattu", "பாட்டு"], alt: ["pattu", "பட்டு"] },
+  { heard: ["kaari", "कारी"], alt: ["khadi", "खादी"] },
 ];
 
 export type Clarify = { word: string; options: [string, string] };
 
-/** If the utterance contains a word that is easily misheard, ask about only that word. */
+/** If the utterance contains an easily-misheard unusual word, ask about only that word. */
 export function findConfusable(text: string): Clarify | null {
   const tokens = text.split(/\s+/).map((x) => x.replace(/^[\p{P}]+|[\p{P}]+$/gu, ""));
   for (const tok of tokens) {
     const lower = tok.toLowerCase();
-    for (const [a, b] of CONFUSABLE) {
-      const inA = a.find((f) => f.toLowerCase() === lower);
-      const inB = b.find((f) => f.toLowerCase() === lower);
-      if (!inA && !inB) continue;
-      // offer the partner in the same script as what was heard
-      const partners = inA ? b : a;
-      const sameScript = partners.find((p) => /\p{Script=Latin}/u.test(p) === /\p{Script=Latin}/u.test(tok)) ?? partners[0];
-      return { word: tok, options: inA ? [tok, sameScript] : [sameScript, tok] };
+    for (const g of CONFUSABLE) {
+      if (!g.heard.some((f) => f.toLowerCase() === lower)) continue;
+      // offer the alternative in the same script as what was heard
+      const latin = /\p{Script=Latin}/u.test(tok);
+      const alt = g.alt.find((a) => /\p{Script=Latin}/u.test(a) === latin && (latin || sameScript(a, tok))) ?? g.alt[0];
+      return { word: tok, options: [tok, alt] };
     }
   }
   return null;
+}
+
+function sameScript(a: string, b: string) {
+  const s = (x: string) => (/\p{Script=Devanagari}/u.test(x) ? "deva" : /\p{Script=Tamil}/u.test(x) ? "taml" : "other");
+  return s(a) === s(b);
 }
 
 /**
@@ -227,5 +232,18 @@ export function orderConfirmPrompt(buyer: string, product: string, statusLabel: 
       return `${buyer} அவர்களின் “${product}” ஆர்டரை “${statusLabel}” என்று மாற்றலாமா? ஆமாம் அல்லது இல்லை என்று சொல்லுங்கள்.`;
     default:
       return `Mark ${buyer}'s “${product}” order as “${statusLabel}”? Say yes or no.`;
+  }
+}
+
+/** "Price ₹8,500, quantity 3. Is that right? Say yes or no." — before a listing is saved. */
+export function listingConfirmPrompt(price: number | null, quantity: number | null, lang: string): string {
+  const p = price != null ? `₹${formatIndian(price)}` : null;
+  switch (lk(lang)) {
+    case "hi":
+      return [p && `कीमत ${p}`, quantity != null && `मात्रा ${quantity}`].filter(Boolean).join(", ") + "। क्या यह सही है? हाँ या नहीं बोलिए।";
+    case "ta":
+      return [p && `விலை ${p}`, quantity != null && `எண்ணிக்கை ${quantity}`].filter(Boolean).join(", ") + ". சரியா? ஆமாம் அல்லது இல்லை என்று சொல்லுங்கள்.";
+    default:
+      return [p && `Price ${p}`, quantity != null && `quantity ${quantity}`].filter(Boolean).join(", ") + ". Is that right? Say yes or no.";
   }
 }
