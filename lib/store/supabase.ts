@@ -85,10 +85,6 @@ export class SupabaseStore implements Store {
     return buyerCheck(await this.sb.from("buyers").select("*").eq("key_hash", keyHash).maybeSingle()) as Buyer | null;
   }
 
-  async attachBuyer(conversationId: string, buyerId: string) {
-    buyerCheck(await this.sb.from("conversations").update({ buyer_id: buyerId }).eq("id", conversationId).is("buyer_id", null));
-  }
-
   async getBuyerActivity(buyerId: string): Promise<BuyerActivity> {
     const convs = (buyerCheck(
       await this.sb
@@ -182,7 +178,39 @@ export class SupabaseStore implements Store {
     ) as ConversationFull | null;
   }
 
-  async findOrCreateConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string) {
+  async findOrCreateConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string, buyerId?: string | null) {
+    if (buyerId) {
+      // Identified buyer (migration 0004): their own conversation, never matched by name.
+      const mine = buyerCheck(
+        await this.sb.from("conversations").select("id").eq("product_id", productId).eq("buyer_id", buyerId).order("created_at", { ascending: false }).limit(1).maybeSingle()
+      ) as { id: string } | null;
+      if (mine) return mine.id;
+      const made = buyerCheck(
+        await this.sb
+          .from("conversations")
+          .insert({ product_id: productId, seller_id: sellerId, buyer_name: buyerName, buyer_language: buyerLanguage, buyer_id: buyerId })
+          .select("id")
+          .single()
+      ) as { id: string };
+      return made.id;
+    }
+    // Anonymous: match by name + language, but never join a conversation that belongs to an identified buyer.
+    const anon = await this.sb
+      .from("conversations")
+      .select("id")
+      .eq("product_id", productId)
+      .eq("buyer_name", buyerName)
+      .eq("buyer_language", buyerLanguage)
+      .is("buyer_id", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!anon.error || !/buyer_id/.test(anon.error.message)) {
+      const row = check(anon) as { id: string } | null;
+      if (row) return row.id;
+      return this.createConversation(productId, sellerId, buyerName, buyerLanguage);
+    }
+    // Before migration 0004 there's no buyer_id column: match by name + language as before.
     const existing = check(
       await this.sb
         .from("conversations")
@@ -195,6 +223,10 @@ export class SupabaseStore implements Store {
         .maybeSingle()
     ) as { id: string } | null;
     if (existing) return existing.id;
+    return this.createConversation(productId, sellerId, buyerName, buyerLanguage);
+  }
+
+  private async createConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string) {
     const created = check(
       await this.sb
         .from("conversations")

@@ -1,6 +1,6 @@
 # Bol Bazaar — Progress
 
-_Last updated: 2026-11-28_
+_Last updated: 2026-11-29_
 
 ## Status
 Feature-complete for submission. `npm run lint`, `npm run build`, `npm test` (36 tests) pass;
@@ -24,13 +24,18 @@ Feature-complete for submission. `npm run lint`, `npm run build`, `npm test` (36
 - **Seller login (prototype):** private link (`/seller/login?k=…`, sent to her own WhatsApp) and a
   4-digit PIN (tapped or spoken) for "I already have a shop"; 5 wrong tries lock it for 5 minutes;
   Log out on the dashboard; demo sellers stay one-tap. Secrets live in `seller_auth` (migration 0003).
+- **Buyer identity (no login, no PIN):** name + language asked once on the first chat/order (typed or
+  spoken); "Save my chats" private link (`/buyer/login?k=…`, WhatsApp + copy) restores chats and
+  orders on any device; "My chats & orders" page (`/buyer`). Identified buyers get their own
+  conversations (never shared by name). Migration 0004.
 - **Polish:** separate app language vs. "I speak" language, portal-based overlays, mobile sizing,
   `/demo` story strip, README.
 
 ## Open / manual
 - **Supabase (run in the SQL Editor, in order):** `supabase/migrations/0002_shop_profile.sql`, then
-  `supabase/migrations/0003_seller_auth.sql`, then `npm run seed`. 0002 = storefronts, 0003 = seller
-  login. Keyless/Docker mode needs none of this.
+  `supabase/migrations/0003_seller_auth.sql`, then `supabase/migrations/0004_buyers.sql`, then
+  `npm run seed`. 0002 = storefronts, 0003 = seller login, 0004 = buyer chats. Keyless/Docker mode
+  needs none of this.
 - **Auth is prototype-level:** only the link/PIN flow uses signed sessions; other seller writes
   still trust the browser's seller id (see README security notes).
 - **Real-microphone check:** recovery answers ("aamaa", "haan") and the keyless browser-STT

@@ -113,11 +113,6 @@ export class MemoryStore implements Store {
     return null;
   }
 
-  async attachBuyer(conversationId: string, buyerId: string) {
-    const c = db().conversations.find((x) => x.id === conversationId);
-    if (c && !c.buyer_id) c.buyer_id = buyerId;
-  }
-
   async getBuyerActivity(buyerId: string): Promise<BuyerActivity> {
     const d = db();
     const convs = d.conversations.filter((c) => c.buyer_id === buyerId);
@@ -217,10 +212,16 @@ export class MemoryStore implements Store {
     });
   }
 
-  async findOrCreateConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string) {
+  async findOrCreateConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string, buyerId?: string | null) {
     const d = db();
     const existing = d.conversations
-      .filter((c) => c.product_id === productId && c.buyer_name === buyerName && c.buyer_language === buyerLanguage)
+      .filter((c) =>
+        c.product_id !== productId
+          ? false
+          : buyerId
+            ? c.buyer_id === buyerId
+            : !c.buyer_id && c.buyer_name === buyerName && c.buyer_language === buyerLanguage
+      )
       .sort(byNewest)[0];
     if (existing) return existing.id;
     const c: Conversation = {
@@ -229,6 +230,7 @@ export class MemoryStore implements Store {
       seller_id: sellerId,
       buyer_name: buyerName,
       buyer_language: buyerLanguage,
+      buyer_id: buyerId ?? null,
       created_at: now(),
     };
     d.conversations.push(c);

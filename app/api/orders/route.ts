@@ -24,11 +24,10 @@ export async function POST(req: NextRequest) {
     const product = await getStore().getProduct(b.productId);
     if (!product || product.status !== "published") throw new ApiError(404, "not_found", "Product not available");
 
-    const conversationId = await ensureConversation(product.id, product.seller_id, b.buyerName, buyerLang);
-
-    // Lightweight buyer identity: remember this conversation for "My chats & orders".
+    // Lightweight buyer identity: an identified buyer gets their own conversation ("My chats & orders").
     const buyerId = verifyBuyerSession(b.buyerToken);
-    if (buyerId) await getStore().attachBuyer(conversationId, buyerId).catch((e) => console.warn("attachBuyer:", (e as Error).message));
+    const conversationId = await ensureConversation(product.id, product.seller_id, b.buyerName, buyerLang, buyerId);
+
     const order = await getStore().insertOrder({
       product_id: product.id,
       conversation_id: conversationId,

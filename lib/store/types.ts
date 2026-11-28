@@ -54,8 +54,6 @@ export interface Store {
   getBuyer(id: string): Promise<Buyer | null>;
   setBuyerKeyHash(id: string, keyHash: string): Promise<void>;
   findBuyerByKeyHash(keyHash: string): Promise<Buyer | null>;
-  /** Link a conversation to a buyer (never takes one that belongs to someone else). */
-  attachBuyer(conversationId: string, buyerId: string): Promise<void>;
   getBuyerActivity(buyerId: string): Promise<BuyerActivity>;
 
   getProduct(id: string): Promise<(Product & { seller: Seller }) | null>;
@@ -67,7 +65,11 @@ export interface Store {
   setProductListing(id: string, listing: Listing): Promise<void>;
 
   getConversation(id: string): Promise<ConversationFull | null>;
-  findOrCreateConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string): Promise<string>;
+  /**
+   * With buyerId: that buyer's own conversation for the product (never shared by name).
+   * Without: an anonymous conversation matched by name + language (never one owned by a buyer).
+   */
+  findOrCreateConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string, buyerId?: string | null): Promise<string>;
   getMessages(conversationId: string): Promise<Message[]>;
   insertMessage(row: NewMessage): Promise<Message>;
   getMessage(id: string): Promise<Message | null>;

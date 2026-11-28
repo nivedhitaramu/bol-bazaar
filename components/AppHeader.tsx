@@ -4,13 +4,14 @@ import { Mic, Store, ShoppingBag, MessageCircle } from "lucide-react";
 import { LanguagePicker } from "./LanguagePicker";
 import { useLang } from "./LangProvider";
 
-export function Logo({ small = false }: { small?: boolean }) {
+/** markOnlyOnPhone: below 400px show only the mic mark, so the app header fits 375px. */
+export function Logo({ small = false, markOnlyOnPhone = false }: { small?: boolean; markOnlyOnPhone?: boolean }) {
   return (
     <Link href="/" className="flex min-h-14 items-center gap-2" aria-label="Bol Bazaar home">
       <span className={`grid place-items-center rounded-xl bg-maroon text-turmeric ${small ? "size-9" : "size-10"}`}>
         <Mic className="size-5" />
       </span>
-      <span className={`font-display font-extrabold leading-none text-maroon ${small ? "text-xl" : "text-2xl"}`}>
+      <span className={`font-display font-extrabold leading-none text-maroon ${small ? "text-xl" : "text-2xl"} ${markOnlyOnPhone ? "max-[400px]:hidden" : ""}`}>
         Bol<span className="text-saffron">Bazaar</span>
       </span>
     </Link>
@@ -26,7 +27,7 @@ export function AppHeader({ back }: { back?: React.ReactNode }) {
     >
       <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-2">
         {back}
-        <Logo small />
+        <Logo small markOnlyOnPhone />
         <nav className="ml-auto flex items-center gap-1">
           <Link href="/shop" className="hidden min-h-14 items-center gap-1.5 rounded-full px-3 font-semibold hover:bg-sand sm:flex">
             <ShoppingBag className="size-4 text-maroon" /> {t("shop")}

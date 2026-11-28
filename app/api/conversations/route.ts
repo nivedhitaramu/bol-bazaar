@@ -21,11 +21,10 @@ export async function POST(req: NextRequest) {
     const product = await getStore().getProduct(b.productId);
     if (!product) throw new ApiError(404, "not_found", "Product not found");
 
-    const id = await ensureConversation(product.id, product.seller_id, b.buyerName, lang);
-
-    // Lightweight buyer identity: remember this conversation for "My chats & orders".
+    // Lightweight buyer identity: an identified buyer gets their own conversation ("My chats & orders").
     const buyerId = verifyBuyerSession(b.buyerToken);
-    if (buyerId) await getStore().attachBuyer(id, buyerId).catch((e) => console.warn("attachBuyer:", (e as Error).message));
+    const id = await ensureConversation(product.id, product.seller_id, b.buyerName, lang, buyerId);
+
     return ok({ id });
   } catch (e) {
     return fail(e);

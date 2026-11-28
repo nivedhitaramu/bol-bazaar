@@ -91,6 +91,6 @@ export async function postMessage(opts: {
 }
 
 /** Find-or-create a conversation for (product, buyer name, buyer language). */
-export function ensureConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string) {
-  return getStore().findOrCreateConversation(productId, sellerId, buyerName, buyerLanguage);
+export function ensureConversation(productId: string, sellerId: string, buyerName: string, buyerLanguage: string, buyerId?: string | null) {
+  return getStore().findOrCreateConversation(productId, sellerId, buyerName, buyerLanguage, buyerId);
 }

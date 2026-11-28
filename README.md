@@ -220,7 +220,7 @@ cp .env.example .env.local     # Windows PowerShell: Copy-Item .env.example .env
 
 ### 3. Database
 
-In the Supabase dashboard, open **SQL Editor**, paste the contents of [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), and click **Run**. Then do the same for [`0002_shop_profile.sql`](supabase/migrations/0002_shop_profile.sql), which adds the storefront column used by "Speak your shop online". Then run [`0003_seller_auth.sql`](supabase/migrations/0003_seller_auth.sql), which adds the private `seller_auth` table for seller login (link and PIN). Without it, login shows a clear "run migration 0003" message, and everything else keeps working.
+In the Supabase dashboard, open **SQL Editor**, paste the contents of [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), and click **Run**. Then do the same for [`0002_shop_profile.sql`](supabase/migrations/0002_shop_profile.sql), which adds the storefront column used by "Speak your shop online". Then run [`0003_seller_auth.sql`](supabase/migrations/0003_seller_auth.sql), which adds the private `seller_auth` table for seller login (link and PIN). Without it, login shows a clear "run migration 0003" message, and everything else keeps working. Then run [`0004_buyers.sql`](supabase/migrations/0004_buyers.sql), which adds the private `buyers` table and `conversations.buyer_id` for "Save my chats" and "My chats & orders". Without it, buyers can still chat and order as before.
 (Or use `supabase db push` with the Supabase CLI.) This creates the tables, RLS policies, the Realtime publication for `messages` and `orders`, and the public Storage buckets.
 
 ### 4. Seed and run (Supabase mode)
@@ -273,6 +273,7 @@ All API keys stay server-side in Route Handlers. Only the Supabase URL and the p
 - **Where secrets live:** in their own `seller_auth` table (migration `0003`) with RLS on and **no** policies, so only the server can read it. The `sellers` table stays publicly readable for storefronts.
 - **Not protected yet:** other seller actions (listings, orders, replies) still trust the seller id sent by the browser. A real product needs proper auth (phone OTP) and server-side authorization on every write.
 - **Demo sellers** (Meena, Ramesh) are one tap, with no PIN, on purpose.
+- **Buyers** browse with no login. Their first chat or order asks their name and language once. "Save my chats" then gives a private link (`/buyer/login?k=…`) that restores their chats and orders on any device. There's no PIN for buyers, and only the link's SHA-256 is stored, in a private `buyers` table (migration `0004`). Making a new link stops the old one working. Anyone with the link can see that buyer's chats, so the UI tells them to keep it private.
 - **Other data:** RLS allows public **reads** only, and all writes go through server routes using the secret key. `.env.local` is git-ignored, and `.env.example` contains no secrets.
 
 ## 🗣️ Built by voice with Wispr Flow
